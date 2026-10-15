@@ -125,7 +125,7 @@ input.codein{font-size:30px;text-align:center;letter-spacing:10px;width:190px;pa
   .sticky{position:sticky;bottom:0;padding:6px 0;background:linear-gradient(transparent,#060a1aee 40%)}
 }
 /* チュートリアル */
-#tut{position:absolute;top:calc(max(8px,env(safe-area-inset-top)) + 44px);left:50%;transform:translateX(-50%);width:min(520px,70vw);background:rgba(8,12,28,.88);border:2px solid #ffd400;border-radius:12px;padding:6px 12px 8px;text-align:center;display:none}
+#tut{position:absolute;top:calc(max(8px,env(safe-area-inset-top)) + 44px);left:50%;transform:translateX(-50%);width:min(420px,56vw);background:rgba(8,12,28,.78);border:2px solid #ffd400;border-radius:12px;padding:6px 12px 8px;text-align:center;display:none}
 body.tut #tut{display:block}
 body.tut #minimap,body.tut #stam{display:none}
 .tut-n{font-size:11px;opacity:.75;font-weight:700}
@@ -204,7 +204,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 #pkui.cam3d .pk-head,#pkui.cam3d .pk-foot{background:rgba(6,10,26,.72);border-radius:14px;padding:6px 14px;position:relative;z-index:2}
 #pkui.cam3d .pk-goal{position:absolute;border:none;background:none;width:auto;aspect-ratio:auto}
 #pkui.cam3d:not(.rev) #pk-svg{display:none}
-#pkui.cam3d #pk-svg{opacity:.8}
+#pkui.cam3d #pk-svg{display:none!important}   /* 3D のゴレイロが見えるので、絵は出さない */
 #pkui.cam3d .pkz{background:#ffffff1f;border-color:#ffffffbb;font-size:15px;text-shadow:0 1px 3px #000}
 #pkui.cam3d .pkz.sel{background:#ffd40066;border-color:#ffd400}
 #pkui.cam3d .pkz.kick{background:#ff3b3077;border-color:#ff3b30}
@@ -1891,6 +1891,7 @@ function gkRestart(t) {
 
 function minuteNow() { return (S.half - 1) * 20 + Math.min(19, Math.floor(S.clock / S.halfLen * 20)) + 1; }
 function scoreGoal(s) {
+  if (S.pkCam) S.pkCam = null;   // PK が入ったら、すぐゴールの画面へ
   if (ball.indirect && ball.lastKicker === ball.indirect) { // 間接フリーキックが、だれにもさわらずに入った → ゴールにならない（相手のゴールクリアランス）
     ball.indirect = null; const def = teams.find(x => x.dir === -s);
     showMsg('', '間接フリーキックは直接入れても点にならない', 2.2); ballOut('gk', def, null); return;
@@ -2094,7 +2095,7 @@ function doPass(p, dir, target, throwIt, o = {}) {
   const lob = o.lob || (throwIt ? dist > 19 : (!human && !through && (dist > 17 || (target && laneBlocked(p, target)))));
   let h, vy;
   if (lob && !throwIt) { // 浮き球：ループのように高く上げて、相手の頭をこえる（遠いほど高い）
-    const H = clamp(2.4 + dist * 0.13, 2.6, 5.2) * (1 + power * 0.08); vy = Math.sqrt(2 * GRAV * H); const T = 2 * vy / GRAV; h = dist / T * 0.97;
+    const H = clamp(1.9 + dist * 0.08, 2.2, 3.8) * (1 + power * 0.08); vy = Math.sqrt(2 * GRAV * H); const T = 2 * vy / GRAV; h = dist / T * 0.97;
   } else if (lob) { h = clamp(dist * 0.8, 8, 16) * (1 + power * 0.15); const T = dist / h * 0.85; vy = 0.5 * GRAV * T; }  // 手で投げる遠いボール
   else if (through) { h = clamp(9 + dist * 0.6, 11, 19) * (1 + power * 0.15); vy = 0.25; }   // 受けやすい速さ
   else { h = clamp(9 + dist * 0.7, 11, 21) * (1 + power * 0.35); vy = 0.25; } // 長押しほど速い
@@ -2197,7 +2198,7 @@ function doShoot(p, power, aim, kind = '') {
   if (Math.random() < MISS_K * clamp(0.85 - Q, 0, 1)) { if (Math.random() < 0.5) tz = side * (GOAL_W + rand(0.2, 1.2)); else ty = GOAL_H + rand(0.2, 0.9); }   // 枠の外
   const dist = Math.hypot(gx - ball.p.x, tz - ball.p.z);
   let spd;
-  if (kind === 'chip') spd = clamp(dist * 0.75, 9, 15) * (0.85 + power * 0.3);   // 山なりでキーパーの上をこえる
+  if (kind === 'chip') spd = clamp(dist * 0.9, 11, 17) * (0.85 + power * 0.3);   // 山なりでキーパーの上をこえる
   else if (kind === 'toe') spd = rand(25, 28);                                     // ためずに速い
   else spd = 13 + power * 17;
   if (has(p, 'cannon') && kind !== 'chip') spd *= 1.12;
@@ -2336,7 +2337,7 @@ function pkUpdate(dt) {
       if (+id === P.id) { if (P.gk.human === 1 && !P.sz && zs.length === 2) P.sz = zs; if (P.kick.human === 1 && !P.kz && zs.length === 1) P.kz = zs[0]; }
     }
     if (P.t <= 0) { if (!P.kz) P.kz = pkRandom(1)[0]; if (!P.sz) P.sz = pkRandom(2); }   // 15秒たったらランダム
-    if (P.kz && P.sz) { P.res = P.sz.includes(P.kz) ? 'save' : 'goal'; P.revealT = 2.0; pkReveal(P.kz, P.sz, P.res); }
+    if (P.kz && P.sz) { P.res = P.sz.includes(P.kz) ? 'save' : 'goal'; P.revealT = 0.35; pkReveal(P.kz, P.sz, P.res); }   // 結果は先に見せない。すぐ 3D でける
     else if (PKUI.role) document.getElementById('pk-time').textContent = Math.ceil(Math.max(0, P.t)) + '秒';
   } else if (!P.fired) {
     P.revealT -= dt;
@@ -2349,7 +2350,7 @@ function kickPK() { // 答え合わせのあと、3D でけって見せる
   tk.kickType = 'shot'; tk.kickStyle = { kind: 'normal', a: 0 }; tk.kickClip = 'R';
   kick(tk, V3(dx / dist * spd, vy, dz / dist * spd)); ball.isShot = true; tk.team.shots++;
   S.pkForced = P.res; S.pkGk = gk;
-  if (S.pkCam) S.pkCam.t = 2.6;   // ボールがゴールに着くまで、キッカーの後ろから見る
+  if (S.pkCam) S.pkCam.t = 1.0;   // ボールがゴールに着くまで、キッカーの後ろから見る（止めた・入ったら、もっと早くもどる）
   // キーパーは止めにいったコースの方へ飛ぶ（セーブならけられたコース、ゴールならえらんだもう一方へ）
   const dz2 = (P.res === 'save' ? P.kz : P.sz[0]), dzw = pkWorld(dz2, s).z;
   gk.dive = 0.6; gk.diveCd = 1.2; gk.diveDir = sgn(dzw - gk.pos.z) || 1; gk.vel.set(0, 0, gk.diveDir * 4.5);
@@ -2382,15 +2383,9 @@ function openPkUI(role, id) {
   pkDrawGK(null); const ui = document.getElementById('pkui'); ui.classList.add('on', 'cam3d'); ui.classList.remove('rev');
 }
 function closePkUI() { document.getElementById('pkui').classList.remove('on'); PKUI.role = null; }
-function pkReveal(kz, sz, res) {
-  if (!PKUI.role) return;   // 画面を開いていない人には見せない
-  PKUI.revealed = true; document.getElementById('pkui').classList.add('rev');
-  document.querySelectorAll('.pkz').forEach(b => { b.disabled = true; b.classList.toggle('sel', sz.includes(b.dataset.z)); b.classList.toggle('kick', b.dataset.z === kz); });
-  pkDrawGK(sz, kz, res);
-  document.getElementById('pk-ok').style.display = 'none';
-  const win = (PKUI.role === 'kick') === (res === 'goal');
-  document.getElementById('pk-msg').textContent = (res === 'save' ? '🧤 セーブ！ コースを読んだ！' : '⚽ ゴール！ コースが外れた！') + (win ? '　あなたの勝ち！' : '　あなたの負け…');
-  sfx(res === 'save' ? 'save' : 'kick', 1);
+function pkReveal(kz, sz, res) { // 2人がえらび終わった：結果は言わずに画面を閉じる（止められるかは、けってみてのお楽しみ）
+  if (!PKUI.role) return;
+  PKUI.revealed = true; closePkUI();
 }
 document.querySelectorAll('.pkz').forEach(b => b.onclick = () => {
   if (!PKUI.role || PKUI.revealed || PKUI.pending) return;
@@ -2452,6 +2447,7 @@ function gkSaveCheck() { // キーパーのセーブ
   if (S.pkForced) { // PK：読み合いの結果どおりにする
     if (!ball.owner && Math.abs(ball.p.x) > HALF_L - 0.9) {
       const res = S.pkForced, g = S.pkGk; S.pkForced = null; ball.saveDone = true;
+      if (S.pkCam) S.pkCam.t = Math.min(S.pkCam.t, 0.3);   // 結果が出たら、すぐふつうの画面にもどって操作できる
       if (res === 'save') { ball.v.x = -ball.v.x * 0.25; ball.v.z = rand(-3, 3); ball.v.y = rand(1.5, 3.5); ball.isShot = false; ball.lastTouch = g.team; ball.lastKicker = g; g.kickCd = 0.5; sfx('save'); showMsg('', '🧤 PKストップ！', 1.6); }
     }
     return;
@@ -2825,6 +2821,10 @@ function zoneTarget(p) {
   return { x: (q.pos.x + dx / l * 1.3) * 0.6 + spot.x * 0.4, z: (q.pos.z + dz / l * 1.3) * 0.6 + spot.z * 0.4 };
 }
 function interceptPoint(p) { // 転がってくるボールを受けられる場所
+  if (!ball.owner && ball.p.y > 0.6 && ball.v.y > -20) { // 浮き球：ボールが落ちてくる場所へ先回りする（真下を追いかけない）
+    const y = ball.p.y - BALL_R, vy = ball.v.y, tl = (vy + Math.sqrt(vy * vy + 2 * GRAV * y)) / GRAV;
+    return { x: clamp(ball.p.x + ball.v.x * tl, -HALF_L + 0.3, HALF_L - 0.3), z: clamp(ball.p.z + ball.v.z * tl, -HALF_W + 0.3, HALF_W - 0.3) };
+  }
   const vx = ball.v.x, vz = ball.v.z, v2 = vx * vx + vz * vz;
   if (v2 < 1) return { x: ball.p.x, z: ball.p.z };
   const t = clamp(((p.pos.x - ball.p.x) * vx + (p.pos.z - ball.p.z) * vz) / v2, 0, 1.5);
@@ -3628,7 +3628,7 @@ function applySnap(s) {
     if (PKUI.id !== id) openPkUI(ki === 1 ? 'kick' : 'gk', id);
     if (!res && PKUI.role) document.getElementById('pk-time').textContent = tleft + '秒';
     if (res && !PKUI.revealed) pkReveal(kz, sz.split(','), res);
-  } else { if (PKUI.role && PKUI.revealed) closePkUI(); if (S.pkCam && S.pkCam.t > 3) S.pkCam.t = 2.6; }
+  } else { if (PKUI.role && PKUI.revealed) closePkUI(); if (S.pkCam && S.pkCam.t > 3) S.pkCam.t = 0.9; }
   if (s.ce) { S.celType = s.ce[0]; S.scorer = s.ce[1] >= 0 ? players[s.ce[1]] : null; if (S.scorer) S.goalTeam = S.scorer.team; }
   teams[0].controlled = s.ct[0] >= 0 ? players[s.ct[0]] : null; teams[1].controlled = s.ct[1] >= 0 ? players[s.ct[1]] : null;
   if (s.m[0] !== NET.lastMsg) { NET.lastMsg = s.m[0]; if (NET.lastQ > 1 || s.m[1]) localMsg(s.m[1], s.m[2], s.m[1] === 'GOAL!!' ? 3 : 1.8); }
@@ -3799,6 +3799,7 @@ function updateCamera(dt) {
   const flip = NET.role === 'guest' ? -1 : 1;  // オンラインの相手側は反対のスタンドから見る
   let look = V3(fx, 0.4, fz + flip * 1.2), pos = V3(fx * 0.92, 14.5 * k, fz + flip * 18.5 * k), sp = 3.2;
   if (S.goalCutWas && S.phase !== 'goal') sp = 8;   // アップから元のカメラへすばやくもどる
+  if (S.camFastT > 0) { S.camFastT -= dt; sp = 10; }
   S.goalCutWas = S.phase === 'goal';
   if (goalCut) { // よろこぶ選手たちのまん中を、コートの内がわから近くで映す
     const sc = S.scorer && !S.scorer.off ? S.scorer : null, ps = S.goalTeam.players.filter(q => !q.off && q.role !== 'GK');
@@ -3808,7 +3809,7 @@ function updateCamera(dt) {
   }
   const pc = S.pkCam;
   if (pc) { // PK：キッカーの後ろから、ゴールとキーパーを見る
-    pc.t -= dt; if (pc.t <= 0) S.pkCam = null;
+    pc.t -= dt; if (pc.t <= 0) { S.pkCam = null; S.camFastT = 0.8; }   // PK のカメラが終わったら、すばやくふつうのカメラへ
     else { pos = V3(pc.x - pc.s * 4.6, 2.35, -pc.s * 0.7); look = V3(pc.s * HALF_L, 0.95, 0); sp = 6;   // 少し後ろ・上から、キッカーの頭ごしにゴールを見る
       if (!pc.cut) { pc.cut = true; camPos.copy(pos); camLook.copy(look); } }   // PK になったら一気に切りかえる
   }
@@ -3933,9 +3934,9 @@ function tutShow() {
   tutBig();
 }
 let tutMiniT = 0;
-function tutBig() { // 説明を大きく出して、4秒たったら小さくして隅へ
+function tutBig() { // 説明を大きく出して、2.5秒たったら小さくして隅へ
   const el = document.getElementById('tut'); el.classList.remove('mini');
-  clearTimeout(tutMiniT); tutMiniT = setTimeout(() => el.classList.add('mini'), 4000);
+  clearTimeout(tutMiniT); tutMiniT = setTimeout(() => el.classList.add('mini'), 2500);
 }
 document.getElementById('tut').addEventListener('click', () => { if (document.getElementById('tut').classList.contains('mini')) tutBig(); });
 function tutEv(k, v = 1) { // できたことを知らせてもらう
