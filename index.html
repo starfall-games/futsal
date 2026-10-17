@@ -66,6 +66,8 @@ body.defending #tb-shoot{background:rgba(20,160,90,.65)}
 body.defending #tb-dash{background:rgba(230,50,50,.7)}
 #tb-gk{width:54px;height:54px;right:calc(max(18px,env(safe-area-inset-right)) + 196px);bottom:calc(max(14px,env(safe-area-inset-bottom)) + 120px);background:rgba(255,204,0,.75);color:#111;font-size:13px;display:none}
 body.defending #tb-gk{display:flex}
+body.gkmode #tb-pass,body.gkmode #tb-sw{display:none}
+body.gkmode #tb-dash{background:rgba(255,204,0,.8);color:#111}
 body.defending #tb-sw{background:rgba(255,140,0,.75);width:72px;height:72px}
 
 /* ===== メニュー画面 ===== */
@@ -92,6 +94,17 @@ h2{font-size:22px;font-weight:900;font-style:italic;letter-spacing:1px}
 .teams{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;justify-content:safe center}
 .tcard{flex:0 0 auto;width:100px;padding:7px 4px;border-radius:12px;background:#ffffff12;border:3px solid transparent;text-align:center;cursor:pointer}
 .tcard.sel{border-color:#ffd400;background:#ffd40024}
+.tcard.rnd .shirt{display:flex;align-items:center;justify-content:center;font-size:24px;background:#ffffff22}
+#pv{position:relative;width:100%;height:200px;border-radius:16px;overflow:hidden;margin:0 auto 8px;max-width:760px;background:radial-gradient(ellipse at 50% 120%,#3a6bd8 0,#14213f 60%,#0a0f1e 100%)}
+#pv canvas{width:100%;height:100%;display:block}
+.pv-n{position:absolute;left:10px;bottom:8px;font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;max-width:45%;text-align:left}
+.pv-n.r{left:auto;right:10px;text-align:right}
+.pv-n small{display:block;font-weight:700;opacity:.8;font-size:11px}
+.pv-q{position:absolute;left:18%;top:8px;font-size:26px;display:none;transform:translateX(-50%)}
+.pv-q.r{left:82%}
+.pv-vs{position:absolute;left:50%;top:10px;transform:translateX(-50%);font-weight:900;font-style:italic;font-size:22px;color:#ffd400;text-shadow:0 2px 4px #000}
+.kitseg{margin-left:8px;vertical-align:middle}.kitseg button{padding:4px 10px;font-size:12px}
+@media (max-height:500px){#pv{height:130px}.pv-q{font-size:20px}}
 .shirt{width:40px;height:36px;margin:0 auto 4px;clip-path:polygon(25% 0,40% 9%,60% 9%,75% 0,100% 20%,88% 42%,78% 36%,78% 100%,22% 100%,22% 36%,12% 42%,0 20%)}
 .tname{font-size:12px;font-weight:800;line-height:1.2}
 .stars{font-size:11px;color:#ffd400;letter-spacing:-1px}
@@ -193,6 +206,7 @@ table.ctl th{color:#ffd400;white-space:nowrap}
 .c-sty{font-size:10px;color:#7fd3ff;font-weight:700;margin-top:2px}
 .playrow{margin:6px 0 10px;text-align:center}.playrow b{display:block;margin-bottom:3px}
 body.goalcut #minimap,body.goalcut #stam,body.goalcut #scorebar,body.goalcut #touch,body.goalcut #pausebtn,body.goalcut #tacbtn,body.goalcut #keyhelp,body.goalcut #power,body.goalcut #toast{visibility:hidden}
+.msub{display:none}.msub-t{grid-column:1/-1;text-align:center;font-weight:900;font-size:18px}
 .swatches i.on{border-color:#ffd400;transform:scale(1.15)}
 input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;width:170px;font-family:inherit;font-weight:800}
 .btn small{display:block;font-size:10px;opacity:.85}
@@ -294,19 +308,38 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="logo">FUTSAL<br><span>STRIKE</span> ⚽</div>
   <div class="sub">5人制フットサルの 3D サッカーゲーム</div>
   <div class="coinbar">🪙 <span class="coinv">0</span></div>
-  <div class="menu2">
+  <!-- ホームのメニュー：えだわかれ（ツリー） -->
+  <div class="menu2" id="menu-top">
+    <button class="btn" data-sub="match">⚽ 試合<small>CPU・リーグ・オンライン・なりきり</small></button>
+    <button class="btn" data-sub="team" style="background:#ff7a00;box-shadow:0 4px 0 #a34d00">👕 チーム<small>マイチーム・ガチャ・ショップ</small></button>
+    <button class="btn" data-sub="help" style="background:#7b3fe4;box-shadow:0 4px 0 #4b2190">📖 あそびかた<small>チュートリアル・操作・ルール</small></button>
+    <button class="btn gray" data-sub="etc">⚙️ その他<small>レビュー・コード</small></button>
+  </div>
+  <div class="menu2 msub" id="menu-match">
+    <div class="msub-t">⚽ 試合</div>
     <button class="btn" data-go="cpu">⚽ CPUと試合</button>
     <button class="btn gold" data-go="league">🏆 リーグ戦</button>
     <button class="btn green" data-go="online">🌐 オンライン対戦</button>
+    <button class="btn" data-go="pro" style="background:#17a34a;box-shadow:0 4px 0 #0b5e2a">🧑 選手になりきる</button>
+  </div>
+  <div class="menu2 msub" id="menu-team">
+    <div class="msub-t">👕 チーム</div>
     <button class="btn" data-go="myteam" style="background:#ff7a00;box-shadow:0 4px 0 #a34d00">👕 マイチーム</button>
     <button class="btn" data-go="gacha" style="background:#e0368c;box-shadow:0 4px 0 #8f1a55">🎰 ガチャ</button>
+    <button class="btn gold" data-go="shop">🛒 ショップ</button>
+  </div>
+  <div class="menu2 msub" id="menu-help">
+    <div class="msub-t">📖 あそびかた</div>
     <button class="btn" data-go="tutorial" style="background:#7b3fe4;box-shadow:0 4px 0 #4b2190">🎓 チュートリアル</button>
     <button class="btn gray" data-go="controls">🎮 操作一覧</button>
     <button class="btn gray" data-go="howto">❓ ルール</button>
-    <button class="btn" data-go="pro" style="background:#17a34a;box-shadow:0 4px 0 #0b5e2a">🧑 選手になりきる</button>
+  </div>
+  <div class="menu2 msub" id="menu-etc">
+    <div class="msub-t">⚙️ その他</div>
     <button class="btn gray" data-go="review">📝 レビュー・改善点</button>
     <button class="btn gray" id="giftbtn">🎁 コード入力</button>
   </div>
+  <button class="btn gray small" id="menu-back" style="display:none">← もどる</button>
   <div class="row"><button class="btn small gray" id="sebtn">🔊 音 ON</button><button class="btn small gray" id="modelbtn">👤 選手：リアル</button></div>
   <div class="sub" id="realload"></div>
 </div></div>
@@ -314,10 +347,11 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 <!-- 試合の設定（CPU / リーグ） -->
 <div class="screen" id="sc-setup"><div class="wrap">
   <h2 id="setup-title">CPUと試合</h2>
+  <div id="pv"><canvas id="pv-cv"></canvas><div class="pv-n" id="pv-n0"></div><div class="pv-n r" id="pv-n1"></div><div class="pv-q" id="pv-q0">🎲</div><div class="pv-q r" id="pv-q1">🎲</div><div class="pv-vs" id="pv-vs">VS</div></div>
   <div class="panel">
-    <div class="label">あなたのチーム</div>
+    <div class="label">あなたのチーム <span class="seg kitseg" id="seg-kit0"></span></div>
     <div class="teams" id="pick-me"></div>
-    <div id="opp-box"><div class="label">あいてのチーム</div><div class="teams" id="pick-opp"></div></div>
+    <div id="opp-box"><div class="label">あいてのチーム <span class="seg kitseg" id="seg-kit1"></span></div><div class="teams" id="pick-opp"></div></div>
     <div class="row" style="margin-top:6px">
       <div><div class="label">強さ</div><div class="seg" id="seg-diff"></div></div>
       <div><div class="label">試合時間（前半・後半 それぞれ）</div><div class="seg" id="seg-len"></div></div>
@@ -441,6 +475,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <button class="btn green" id="p-resume">▶ つづける</button>
   <button class="btn gold" id="p-subs">🔄 選手交代</button>
   <button class="btn" id="p-tac">📋 作戦</button>
+  <button class="btn gray" id="p-cam" style="display:none">📷 カメラ：一人称</button>
   <button class="btn gray" id="p-ctl">🎮 操作一覧</button>
   <button class="btn red" id="p-quit">試合をやめる</button>
 </div></div>
@@ -461,7 +496,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="panel" style="text-align:center">
     <div class="label">名前（10文字まで）</div><input id="cn-name" class="namein" maxlength="10" placeholder="例：ヤマダ">
     <div class="label" style="margin-top:8px">ポジション</div><div class="seg" id="cn-pos"></div>
-    <div class="label" style="margin-top:8px">背番号</div><input id="cn-num" class="namein" type="number" min="1" max="99" value="10" style="width:90px">
+    <div class="sub" style="margin-top:8px">背番号はクラブが決めるよ。活やくすると、いい背番号に変えるチャンスが来る！</div>
     <div class="label" style="margin-top:8px">はだの色</div><span class="swatches" id="cn-skin"></span>
     <div class="label" style="margin-top:8px">最初のクラブ</div><div class="cards" id="cn-club" style="justify-content:center"></div>
     <div class="sub">18歳でデビュー。能力はまだ低いけど、試合とトレーニングでのびていく</div>
@@ -497,6 +532,15 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
     <div class="err" id="rv-msg"></div>
   </div>
   <button class="btn gray small" data-go="title">← ホーム</button>
+</div></div>
+
+<!-- ショップ（ゲームの中のコインだけ） -->
+<div class="screen" id="sc-shop"><div class="wrap">
+  <h2>🛒 ショップ</h2>
+  <div class="coinbar">🪙 <span class="coinv">0</span></div>
+  <div class="sub">選手を育てるアイテムを、ゲームの中のコインで買えるよ。アイテムは マイチーム →選手をタップ で使う。試合のあとにももらえる</div>
+  <div class="cards" id="shop-list" style="justify-content:center"></div>
+  <div class="row"><button class="btn gray small" data-go="title">← ホーム</button><button class="btn small" data-go="myteam">👕 マイチームへ</button></div>
 </div></div>
 
 <!-- ガチャ -->
@@ -544,7 +588,8 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 <!-- 選手のメニュー（強化・売る） -->
 <div class="screen" id="sc-cardmenu"><div class="wrap">
   <div class="cards" id="cm-card"></div>
-  <div class="row"><button class="btn green" id="cm-up" style="width:200px"></button><button class="btn red" id="cm-sell" style="width:200px"></button></div>
+  <div class="label">🎒 アイテムを使って育てる</div><div class="cards" id="cm-items" style="justify-content:center"></div>
+  <div class="row"><button class="btn green" id="cm-up" style="display:none"></button><button class="btn red" id="cm-sell" style="width:200px"></button></div>
   <div class="row"><button class="btn" id="cm-num" style="width:200px">👕 背番号を変える</button></div>
   <div class="err" id="cm-msg"></div>
   <button class="btn gray small" id="cm-back">もどる</button>
@@ -745,7 +790,34 @@ function newCard(rar, pos) {
   return { uid: MY.next++, name: NAMES[(Math.random() * NAMES.length) | 0] + ' ' + GIVEN[(Math.random() * GIVEN.length) | 0], pos, rar, ...st, lv: 0, ...genTraits(pos, rar), style: pickStyle(pos, st), ...(pos === 'GK' ? gkBody() : {}),
     num: pos === 'GK' ? [1, 12, 16][(Math.random() * 3) | 0] : 2 + ((Math.random() * 97) | 0) };
 }
-const cardStat = (c, k) => Math.min(99, c[k] + c.lv * 2);   // 強化すると +2 ずつ
+const cardStat = (c, k) => Math.round(Math.min(99, c[k] + c.lv * 2 + ((c.add && c.add[k]) || 0)));   // 前の強化（+2ずつ）＋アイテムと試合でのびた分
+// ----- アイテム（選手を育てる） -----
+const ITEMS = {
+  sh: { n: 'シュート練習ボール', e: '⚽', d: 'シュート +2' }, pa: { n: 'パス練習ボード', e: '🎯', d: 'パス +2' }, sp: { n: 'スピードシューズ', e: '👟', d: '速さ +2' },
+  df: { n: '守備ノート', e: '🛡', d: '守備 +2' }, ph: { n: '筋トレセット', e: '💪', d: '体 +2' }, gk: { n: 'キーパーグローブ', e: '🧤', d: 'キーパー +2（GKだけ）' },
+  all: { n: 'エナジードリンク', e: '🥤', d: '全部 +1' },
+};
+const ITEM_PRICE = { sh: 120, pa: 120, sp: 120, df: 120, ph: 120, gk: 120, all: 400 };
+const ADD_CAP = [0, 16, 13, 10, 8, 6];   // のびる上限（1つの能力につき）：レア度が低いほど大きくのびる
+function growCard(c, k, v) { // c の能力 k を v だけのばす（上限まで）。のびた分を返す
+  c.add = c.add || {}; const cap = ADD_CAP[c.rar] || 8, before = c.add[k] || 0;
+  const nv = Math.min(cap, before + v, 99 - c[k] - c.lv * 2); c.add[k] = Math.max(before, nv); return c.add[k] - before;
+}
+function itemKeysFor(c) { return c.pos === 'GK' ? ['gk', 'pa', 'ph', 'sp', 'all'] : ['sh', 'pa', 'sp', 'df', 'ph', 'all']; }
+function useItem(c, k) {
+  if (!MY.items || !(MY.items[k] > 0)) return false;
+  let g = 0;
+  if (k === 'all') for (const s2 of ['sp', 'sh', 'pa', 'df', 'ph', ...(c.pos === 'GK' ? ['gk'] : [])]) g += growCard(c, s2, 1);
+  else g = growCard(c, k, 2);
+  if (g <= 0) return 'max';
+  MY.items[k]--; saveMy(); refreshMy(); return true;
+}
+function dropItems(res) { // 試合のあとにもらえるアイテム（勝つと多い）
+  const n = res === 'win' ? 2 : res === 'draw' ? (Math.random() < 0.5 ? 2 : 1) : 1, got = [];
+  const pool = ['sh', 'pa', 'sp', 'df', 'ph', 'gk', 'sh', 'pa', 'sp', 'df', 'ph', 'all'];
+  for (let i = 0; i < n; i++) { const k = pool[(Math.random() * pool.length) | 0]; MY.items[k] = (MY.items[k] || 0) + 1; got.push(k); }
+  saveMy(); return got;
+}
 function ovr(c) {
   const s = k => cardStat(c, k);
   if (c.pos === 'GK') return Math.round(s('gk') * 0.75 + (s('sp') + s('pa')) / 2 * 0.25);
@@ -768,6 +840,7 @@ function myFix() {
     if (c.legend && LEGENDS[c.legend]) { const L = LEGENDS[c.legend]; for (const k of ['sp', 'sh', 'pa', 'df', 'gk', 'ph']) c[k] = L[k]; c.skills = L.skills.slice(); c.apt = { ...L.apt }; c.style = L.style; }
   }
   if (!MY.plays) MY.plays = { block: 2, blind: 1, diag: 1, onetwo: 0 };
+  if (!MY.items) MY.items = { sh: 1, pa: 1, sp: 1, df: 1, ph: 1, gk: 1, all: 0 };   // はじめの アイテム
   if (!MY.sets) {
     const L = MY.lineup || [], B = MY.bench || [];
     MY.gk = [L[0] ?? null, B[0] ?? null];
@@ -1226,13 +1299,23 @@ const ball = { p: V3(0, BALL_R, 0), v: V3(), owner: null, lastTouch: null, lastK
 const HS = [{}, {}]; // 人が操作するときの状態（シュートのため中など）
 
 function colorDist(a, b) { const A = new THREE.Color(a), B = new THREE.Color(b); return Math.hypot(A.r - B.r, A.g - B.g, A.b - B.b) * 255; }
-function makeKits(d0, d1) {
-  const k0 = { shirt: d0.main, shorts: d0.sub, num: d0.sub, gk: d0.gkc };
-  let k1 = { shirt: d1.main, shorts: d1.sub, num: d1.sub, gk: d1.gkc };
-  if (colorDist(d0.main, d1.main) < 140) { // 色がにているときはアウェイのユニフォーム（色を入れかえ）
-    k1 = { shirt: d1.sub, shorts: d1.main, num: d1.main, gk: d1.gkc };
-    if (colorDist(d0.main, k1.shirt) < 140) k1 = { shirt: '#1a1a1a', shorts: '#1a1a1a', num: '#ffffff', gk: d1.gkc };
-  }
+// ユニフォーム：ホーム（チームの色）とアウェー（2つめの色が主役）。d.away があればそれを使う
+const lum = c => { const C = new THREE.Color(c); return C.r * 0.3 + C.g * 0.59 + C.b * 0.11; };
+function teamKit(d, which) {
+  if (which !== 'away') return { shirt: d.main, shorts: d.sub, num: d.sub, gk: d.gkc, w: 'home' };
+  if (d.away) return { ...d.away, gk: d.away.gk || d.gkc, w: 'away' };
+  let shirt = d.sub, shorts = d.main, num = d.main;
+  if (colorDist(d.main, d.sub) < 90) { shirt = lum(d.main) > 0.5 ? '#1a1a1a' : '#f4f4f4'; num = shorts = d.main; }   // 2つの色がにていたら、白か黒
+  if (colorDist(shirt, num) < 90) num = lum(shirt) > 0.5 ? '#111111' : '#ffffff';
+  return { shirt, shorts, num, gk: d.gkc, w: 'away' };
+}
+// w0・w1：'home' | 'away' | 'auto'（おまかせ）。色がにているときは、相手（2チームめ）がもう1つのユニフォームにかえる
+function makeKits(d0, d1, w0 = 'home', w1 = 'auto') {
+  const k0 = teamKit(d0, w0 === 'away' ? 'away' : 'home');
+  const near = k => colorDist(k0.shirt, k.shirt) < 140;
+  let k1 = teamKit(d1, w1 === 'away' ? 'away' : 'home');
+  if (near(k1)) { k1 = teamKit(d1, k1.w === 'home' ? 'away' : 'home'); k1.forced = true; }
+  if (near(k1)) k1 = { shirt: lum(k0.shirt) > 0.5 ? '#1a1a1a' : '#f4f4f4', shorts: '#1a1a1a', num: lum(k0.shirt) > 0.5 ? '#ffffff' : '#111111', gk: d1.gkc, w: 'third', forced: true };
   if (colorDist(k0.gk, k1.gk) < 120) k1.gk = '#ff66cc';
   return [k0, k1];
 }
@@ -1271,6 +1354,7 @@ function lockInsert(t, lock) {
 }
 function bindData(p, d) { // コートのわく p に 選手 d を入れる（交代）
   if (p.data) p.data.energy = p.energy;
+  d.played = true;   // この試合に出た
   p.data = d; p.name = d.name; p.num = d.num; p.st = effStats(d, p.role); p.energy = d.energy; p.skills = d.skills || []; p.card = d.card || null;
   p.style = STYLE_FAM[posKey(p.role)].includes(d.style) ? d.style : pickStyle(posKey(p.role), { ...d.st, ph: d.st.ph ?? 70 }); // ちがうポジションに入れたら、そこでの動き方
   p.stamina = Math.max(p.stamina ?? 100, 70);
@@ -1777,7 +1861,7 @@ function clearMatch() {
 function newMatch(cfg) {
   clearMatch();
   const defs = [TEAM_BY[cfg.home], TEAM_BY[cfg.away]];
-  const kits = makeKits(defs[0], defs[1]);
+  const kits = makeKits(defs[0], defs[1], cfg.kit0 || 'home', cfg.kit1 || 'auto');
   teams = defs.map((def, i) => ({ i, def, kit: kits[i], dir: i === 0 ? 1 : -1, players: [], score: 0, shots: 0, possT: 0, controlled: null, chaser: null, marks: new Map(), human: null, ai: DIFF[1], swCd: 0 }));
   teams[0].opp = teams[1]; teams[1].opp = teams[0];
   teams[0].human = cfg.auto ? null : 0;
@@ -1801,6 +1885,7 @@ function newMatch(cfg) {
     });
     t.lockP = t.lockData ? t.players.find(p => p.data === t.lockData) : null;
     if (t.lockP) t.controlled = t.lockP;
+    if (t.lockP && t.lockP.role === 'GK' && t.human === localHuman()) setTimeout(() => localMsg('', '🧤 シュートが来たら、スティックで向き＋「セーブ」（J / K）。たおさないと正面でかまえる', 3.5), 1200);
   }
   ball.owner = null; ball.v.set(0, 0, 0); ball.p.set(0, BALL_R, 0); ball.inNet = 0; ball.lastTouch = null; ball.lastKicker = null; ball.receiver = null;
   HS[0] = {}; HS[1] = {};
@@ -2754,8 +2839,14 @@ function gkSaveCheck() { // キーパーのセーブ
       ball.saveDone = true;
       const spd = ball.v.length(), y = ball.p.y;
       const R = gkReach(g, y, sh0), need = Math.abs(ball.p.z - (sh0 ? sh0.gz : g.pos.z));   // 手足が届くはば と、シュートまでの横のきょり
-      ball.saveInfo = { need, reach: R };
-      if (!(need < R || (spd < 10 && need < R + 0.45))) continue;   // 届かない → ゴール（または外れ）。遅いボールは、少し遠くても動いて届く
+      let Rh = R;
+      if (g.humanGK && g.team.lockP === g) { // なりきりキーパー：セーブボタンの向き・タイミング
+        const us = g.userSave, ok = us && S.time - us.t < 1.0, side = sgn(ball.p.z - (sh0 ? sh0.gz : g.pos.z));
+        Rh = R * (!ok ? 0.7 : us.side === 0 ? (need < 0.8 ? 1.15 : 0.75) : us.side === side ? 1.15 : (need < 0.45 ? 0.9 : 0.3));
+        g.userSave = null;
+      }
+      ball.saveInfo = { need, reach: Rh };
+      if (!(need < Rh || (spd < 10 && need < Rh + 0.45))) continue;   // 届かない → ゴール（または外れ）。遅いボールは、少し遠くても動いて届く
       if (true) {
         // どの技で止めたか（キーパーの動きの種類）
         const off = Math.abs(ball.p.z - g.pos.z), y = ball.p.y;
@@ -3323,7 +3414,7 @@ function aiGK(p, dt) { // キーパー
       if (Math.abs(pz) < GOAL_W + 0.7) {
         tg = { x: p.pos.x, z: clamp(pz, -GOAL_W - 0.2, GOAL_W + 0.2) }; fast = true;
         const dz = tg.z - p.pos.z;
-        if (ball.isShot && tt < (ball.blind ? 0.3 : 0.42) && Math.abs(dz) > 0.5 && p.diveCd <= 0) { // ダイブ（ブラインドだと見えるのがおそい）
+        if (ball.isShot && !p.humanGK && tt < (ball.blind ? 0.3 : 0.42) && Math.abs(dz) > 0.5 && p.diveCd <= 0) { // ダイブ（ブラインドだと見えるのがおそい）
           p.dive = 0.6; p.diveCd = 1.2; p.diveDir = sgn(dz);
           p.vel.set(0, 0, sgn(dz) * Math.min(7, Math.abs(dz) / Math.max(tt, 0.15))); return;
         }
@@ -3395,6 +3486,22 @@ function humanUpdate(t, inp, hs, dt) {
   if (pSw && !attack) switchPlayer(t);   // 守るとき：3つめのボタンは「切替」
   const p = t.controlled; if (!p) return 'ai';
   const mag = Math.hypot(inp.mx, inp.mz), dir = mag > 0.25 ? { x: inp.mx / mag, z: inp.mz / mag } : null, aimZ = dir ? dir.z : null;
+  if (p.role === 'GK' && t.lockP === p && ph === 'play' && ball.owner !== p && !attack) { // ----- なりきりキーパー：守るとき（動く・セーブ） -----
+    p.humanGK = true;
+    if ((pPass || pShoot) && p.diveCd <= 0 && p.dive <= 0) { // セーブ：スティックの向きへ横っとび。たおしていなければ正面でかまえる
+      const gs = dir && Math.abs(dir.z) > 0.35 ? sgn(dir.z) : 0;
+      p.userSave = { t: S.time, side: gs };
+      if (gs) { p.dive = 0.6; p.diveCd = 0.9; p.diveDir = gs; p.vel.set(0, 0, gs * 3.5); }
+      else { p.savePose = 'block'; p.savePoseT = 0.6; p.diveCd = 0.5; }
+    }
+    if (p.dive > 0 || !dir || inp.gk) return 'ai';   // スティックをはなしている間は、CPUがいい位置に立つ（飛び出しボタンも）
+    const gx = -HALF_L * t.dir, spd = baseSpeed(p) * Math.min(1, mag) * (inp.dash ? 1.2 : 0.85);
+    let vx = dir.x * spd, vz = dir.z * spd;
+    if ((p.pos.x - gx) * t.dir > 6 && vx * t.dir > 0) vx = 0;   // エリアから大きく出ない（飛び出しボタンのときは別）
+    if (Math.abs(p.pos.z) > 4.5 && vz * p.pos.z > 0) vz = 0;
+    steer(p, vx, vz, dt); p.stance = 'set'; return;
+  }
+  if (p.role === 'GK') p.humanGK = false;
   if (p.role === 'GK') { // ----- ボールを持ったキーパー（人が操作） -----
     if (ball.owner !== p || ph !== 'play') {
       if (ph === 'play' && !ball.owner && ball.receiver && ball.receiver.team === t) return 'ai';   // パスが味方にとどくまでは切りかえない（受ける味方がボールまで走る）
@@ -3758,7 +3865,13 @@ function sampleInput() {
   IN.x = x; IN.y = y; IN.dash = dash; IN.shoot = shoot; IN.pass = pass; IN.gk = anyKey(KEYS.gk) || touch.gk || padGK; IN.leg = anyKey(KEYS.leg) || touch.leg || padLeg;
 }
 // 画面の向き → コートの向き（オンラインの相手側はカメラが反対なので逆にする）
-function worldInput(flip) { const s = flip ? -1 : 1; return { mx: IN.x * s, mz: -IN.y * s, dash: IN.dash, pass: IN.pass, shoot: IN.shoot, gk: IN.gk, pv: IN.pv, sv: IN.sv, pc: IN.pc, sc: IN.sc, wc: IN.wc,
+function worldInput(flip) {
+  if (FPV.on && FPV.yaw != null) { // 一人称：画面の上＝カメラの向き、右＝カメラの右
+    const fx = Math.cos(FPV.yaw), fz = Math.sin(FPV.yaw), rot = (x, y) => [x * -fz + y * fx, x * fx + y * fz];
+    const [mx, mz] = rot(IN.x, IN.y), [kx, kz] = rot(IN.kx, IN.ky);
+    return { mx, mz, dash: IN.dash, pass: IN.pass, shoot: IN.shoot, gk: IN.gk, pv: IN.pv, sv: IN.sv, pc: IN.pc, sc: IN.sc, wc: IN.wc, leg: IN.leg, kc: IN.kc, kv: IN.kv, kx, kz };
+  }
+  const s = flip ? -1 : 1; return { mx: IN.x * s, mz: -IN.y * s, dash: IN.dash, pass: IN.pass, shoot: IN.shoot, gk: IN.gk, pv: IN.pv, sv: IN.sv, pc: IN.pc, sc: IN.sc, wc: IN.wc,
   leg: IN.leg, kc: IN.kc, kv: IN.kv, kx: IN.kx * s, kz: -IN.ky * s }; }
 function localHuman() { return NET.role === 'guest' ? 1 : 0; }
 function humanInput(h) { return (NET.role === 'host' && h === 1) ? NET.remote : worldInput(false); }
@@ -4085,7 +4198,7 @@ function renderMatch(dt) {
     const mk = t2.human == null ? null : markers[t2.human === me ? 0 : 1];
     if (!mk) continue;
     const c = t2.controlled;
-    mk.g.visible = !!c && S.phase !== 'goal' && S.phase !== 'over' && !S.pkCam;   // PK のカメラのときは出さない
+    mk.g.visible = !!c && S.phase !== 'goal' && S.phase !== 'over' && !S.pkCam && !(FPV.on && c === t2.lockP);   // PK・一人称のときは出さない
     if (c) { mk.g.position.set(c.pos.x, 0, c.pos.z); mk.arrow.position.y = 2.25 + Math.sin(t * 6) * 0.08; }
   }
   // シュートのねらい
@@ -4100,6 +4213,7 @@ function renderMatch(dt) {
   if (!window.__camHold) updateCamera(dt);
   updateHUD(dt);
 }
+const FPV = { on: false, yaw: null, was: false };   // 一人称カメラ（なりきり）
 function updateCamera(dt) {
   const aspect = innerWidth / innerHeight;
   let k = aspect < 1.1 ? 1.75 : aspect < 1.5 ? 1.2 : aspect > 1.95 ? 1.0 : 1.05; // 縦長の画面ほどカメラをひく
@@ -4120,6 +4234,23 @@ function updateCamera(dt) {
     let ix = -c.x, iz = -c.z; const il = Math.hypot(ix, iz) || 1; ix /= il; iz /= il;   // コートのまん中の方向
     pos = V3(c.x + ix * 4.4 + iz * 2.4, 2.6, c.z + iz * 4.4 - ix * 2.4); look = V3(c.x, 0.9, c.z); sp = 4;   // 少し高く・ななめから（走ってくる味方が手前に入りにくい）
   }
+  // なりきり：自分の選手の目の高さから見る（一人称）。ボールの方を自動で向く（ボールを持っているときは、せめるゴールの方）
+  const fp = teams[0] && teams[0].lockP;
+  FPV.on = !!(fp && !fp.off && settings.fpv !== false && !S.pkCam && !goalCut && NET.role === 'off');
+  if (fp) fp.mesh.outer.visible = !FPV.on && !fp.off;   // 一人称のときは、自分の体はかくす
+  if (FPV.on) {
+    const bx = ball.p.x - fp.pos.x, bz = ball.p.z - fp.pos.z, bd = Math.hypot(bx, bz), gx = HALF_L * fp.team.dir;
+    let ty = ball.owner === fp ? Math.atan2(-fp.pos.z * 0.5, gx - fp.pos.x) : bd > 1.0 ? Math.atan2(bz, bx) : (FPV.yaw ?? Math.atan2(fp.fz, fp.fx));
+    if (FPV.yaw == null) FPV.yaw = ty;
+    let da = ty - FPV.yaw; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+    FPV.yaw += da * (1 - Math.exp(-dt * 4));   // ゆっくり向きを変える（画面がガクガクしない）
+    const eye = (settings.model === 'simple' ? SIMPLE_SCALE : PLAYER_SCALE) * 1.62, cx = Math.cos(FPV.yaw), cz = Math.sin(FPV.yaw);
+    pos = V3(fp.pos.x + cx * 0.12, eye, fp.pos.z + cz * 0.12);
+    const ly = bd < 6 && ball.owner !== fp ? clamp(ball.p.y, 0, 2.5) : 0.8;   // 近いボールは少し見下ろす
+    look = V3(fp.pos.x + cx * 10, ly, fp.pos.z + cz * 10);
+    if (!FPV.was) { camPos.copy(pos); camLook.copy(look); } sp = 30;
+  } else FPV.yaw = null;
+  FPV.was = FPV.on;
   const pc = S.pkCam;
   if (pc) { // PK：キッカーの後ろから、ゴールとキーパーを見る
     pc.t -= dt; if (pc.t <= 0) { S.pkCam = null; S.camFastT = 0.8; }   // PK のカメラが終わったら、すばやくふつうのカメラへ
@@ -4129,7 +4260,7 @@ function updateCamera(dt) {
   }
   const f = 1 - Math.exp(-dt * sp);
   camPos.lerp(pos, f); camLook.lerp(look, f);
-  const fov = S.pkCam ? 30 - clamp(Math.hypot(HALF_L - Math.abs(S.pkCam.x), S.pkCam.z || 0) - 6, 0, 6) * 1.2 : 36;   // PK はゴールをアップに（第2PK はもっとアップ）
+  const fov = S.pkCam ? 30 - clamp(Math.hypot(HALF_L - Math.abs(S.pkCam.x), S.pkCam.z || 0) - 6, 0, 6) * 1.2 : FPV.on ? 72 : 36;   // 一人称は広く見る   // PK はゴールをアップに（第2PK はもっとアップ）
   if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * (S.pkCam && !S.pkCam.fovSet ? 1 : f); if (S.pkCam) S.pkCam.fovSet = true; camera.updateProjectionMatrix(); }
   camera.position.copy(camPos); camera.lookAt(camLook);
   if (PKUI.role) pkLayout();
@@ -4159,7 +4290,7 @@ const powerEl = document.getElementById('power'), powerBar = powerEl.firstElemen
 const mm = document.getElementById('minimap').getContext('2d');
 let guestCharge = 0;
 const tbPass = document.getElementById('tb-pass'), tbShoot = document.getElementById('tb-shoot'), tbSw = document.getElementById('tb-sw'), tbDash = document.getElementById('tb-dash');
-let lastAttackUI = null;
+let lastAttackUI = null, lastGkUI = null;
 function updateHUD(dt) {
   updateScoreboard();
   document.getElementById('clock').textContent = fmtClock();
@@ -4179,13 +4310,15 @@ function updateHUD(dt) {
   // ボタンの名前：攻撃と守備で役目が変わる
   if (myTeam) {
     const attack = teamAttacking(myTeam) || (S.phase === 'setpiece' && S.sp && S.sp.team === myTeam) || (!ball.owner && ball.lastTouch === myTeam);
-    if (attack !== lastAttackUI) {
-      lastAttackUI = attack; document.body.classList.toggle('defending', !attack);
+    const gkm = !attack && !!(myTeam.lockP && myTeam.lockP.role === 'GK');
+    if (attack !== lastAttackUI || gkm !== lastGkUI) {
+      lastAttackUI = attack; lastGkUI = gkm; document.body.classList.toggle('defending', !attack); document.body.classList.toggle('gkmode', gkm);
       // ボタンには名前だけ（使い方は「操作一覧」とチュートリアルで説明する）
       tbPass.textContent = attack ? 'パス' : '切替';
       tbShoot.innerHTML = attack ? 'ダッシュ<small>スライド＝技</small>' : 'ダッシュ';
       tbDash.textContent = attack ? 'シュート' : 'タックル';
       tbSw.innerHTML = attack ? 'スルー' : 'プレス<small>スライド＝足</small>';
+      if (gkm) tbDash.innerHTML = '🧤セーブ<small>スティックの向き</small>';
       touch.pass = touch.shoot = touch.dash = touch.dash2 = touch.press = false; // 切りかわったら押しっぱなしを消す
       document.querySelectorAll('.tbtn').forEach(b => b.classList.remove('down', 'up', 'dn'));
     }
@@ -4286,16 +4419,23 @@ function tutEnd() { TUT = null; document.body.classList.remove('tut'); endToMenu
 let setupMode = 'cpu';
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(e => e.classList.toggle('on', e.id === id));
+  if (PV) PV.on = id === 'sc-setup';
   document.body.classList.toggle('playing', id === null && MODE === 'match');
   checkRotate();
 }
 function stars(def) { const n = Math.round(2 + (teamPower(def) - 74) / 2); return '★'.repeat(clamp(n, 1, 5)) + '☆'.repeat(5 - clamp(n, 1, 5)); }
-function teamPicker(el, sel, onPick) {
+function teamPicker(el, sel, onPick, rnd) { // rnd：「おまかせ」をえらべる（true / 'on'＝えらんでいる）
   el.innerHTML = '';
+  if (rnd) {
+    const c = document.createElement('div'); c.className = 'tcard rnd' + (rnd === 'on' ? ' sel' : '');
+    c.innerHTML = `<div class="shirt">🎲</div><div class="tname">おまかせ</div><div class="stars">キックオフで決まる</div>`;
+    c.onclick = () => { Sound.play('click'); onPick('random'); teamPicker(el, sel, onPick, 'on'); };
+    el.appendChild(c);
+  }
   for (const d of (TEAM_BY.my ? [TEAM_BY.my, ...TEAMS] : TEAMS)) {
-    const c = document.createElement('div'); c.className = 'tcard' + (d.id === sel ? ' sel' : '');
+    const c = document.createElement('div'); c.className = 'tcard' + (d.id === sel && rnd !== 'on' ? ' sel' : '');
     c.innerHTML = `<div class="shirt" style="background:linear-gradient(90deg,${d.main} 0 70%,${d.sub} 70% 78%,${d.main} 78%)"></div><div class="tname">${d.name}</div><div class="stars">${stars(d)}</div>`;
-    c.onclick = () => { Sound.play('click'); onPick(d.id); teamPicker(el, d.id, onPick); };
+    c.onclick = () => { Sound.play('click'); onPick(d.id); teamPicker(el, d.id, onPick, rnd ? true : undefined); };
     el.appendChild(c);
   }
 }
@@ -4308,15 +4448,29 @@ function openSetup(mode) {
   document.getElementById('setup-title').textContent = mode === 'cpu' ? '⚽ CPUと試合' : '🏆 リーグ戦をはじめる';
   document.getElementById('opp-box').style.display = mode === 'cpu' ? '' : 'none';
   document.getElementById('setup-go').textContent = mode === 'cpu' ? 'キックオフ！' : 'リーグ開始！';
-  teamPicker(document.getElementById('pick-me'), settings.team, id => { settings.team = id; saveSettings(); });
-  teamPicker(document.getElementById('pick-opp'), settings.opp, id => { settings.opp = id; saveSettings(); });
+  // チーム（おまかせ も）・ユニフォーム（ホーム／アウェー）。えらぶと、上のプレビューのキャプテンが着がえる
+  if (!TEAM_BY[settings.team]) settings.team = TEAMS[0].id;
+  if (!TEAM_BY[settings.opp]) settings.opp = TEAMS[1].id;
+  const pick = (id, k) => { if (id === 'random') settings[k + 'Rnd'] = true; else { settings[k] = id; settings[k + 'Rnd'] = false; } saveSettings(); pvUpdate(); };
+  teamPicker(document.getElementById('pick-me'), settings.team, id => pick(id, 'team'), settings.teamRnd ? 'on' : true);
+  teamPicker(document.getElementById('pick-opp'), settings.opp, id => pick(id, 'opp'), settings.oppRnd ? 'on' : true);
+  for (const i of [0, 1]) segPicker(document.getElementById('seg-kit' + i), ['ホーム', 'アウェー'], settings['kit' + i] === 'away' ? 1 : 0, j => { settings['kit' + i] = j ? 'away' : 'home'; saveSettings(); pvUpdate(); });
+  pvUpdate();
   segPicker(document.getElementById('seg-diff'), DIFF.map(d => d.name), settings.diff, i => { settings.diff = i; saveSettings(); });
   segPicker(document.getElementById('seg-len'), LENS.map(n => n + '分'), Math.max(0, LENS.indexOf(settings.len)), i => { settings.len = LENS[i]; saveSettings(); });
   showScreen('sc-setup');
 }
+// 試合に出る2チーム（おまかせ のときは、ここで決める。roll=false ならプレビュー用にそのまま）
+function setupTeams(roll) {
+  const all = (TEAM_BY.my ? ['my'] : []).concat(TEAMS.map(t => t.id)), pickR = ex => { const c = all.filter(i => i !== ex); return c[(Math.random() * c.length) | 0]; };
+  let me = settings.teamRnd ? (roll ? pickR(null) : null) : settings.team;
+  let opp = settings.oppRnd ? (roll ? pickR(me) : null) : settings.opp;
+  if (roll && opp === me) opp = pickR(me);
+  return [me, opp];
+}
 function startCpuMatch(home, away, diff, len, mode) {
   Sound.init(); tryFullscreen();
-  newMatch({ mode, home, away, diff, len, role: 'off' });
+  newMatch({ mode, home, away, diff, len, role: 'off', kit0: settings.kit0 || 'home', kit1: mode === 'cpu' ? (settings.kit1 || 'home') : 'auto' });
   showScreen(null);
 }
 function tryFullscreen() { // Android などは全画面にする（iPhone はできない）
@@ -4325,6 +4479,7 @@ function tryFullscreen() { // Android などは全画面にする（iPhone は�
 }
 function togglePause() {
   if (MODE !== 'match' || !S || S.over) return;
+  camLabel();
   if (S.phase === 'half' && S.htShown && PAUSED) return; // ハーフタイムの画面は「後半開始」で閉じる
   if (NET.role !== 'off') { // オンラインは止められない → やめるか聞く
     document.getElementById('pause-title').textContent = '試合をやめる？';
@@ -4367,6 +4522,16 @@ function finishMatch() {
     const reward = (res === 'win' ? 150 : res === 'draw' ? 80 : 40) + a.score * 20;
     addCoins(reward);
     document.getElementById('res-body').insertAdjacentHTML('beforeend', `<div class="coinbar" style="display:inline-block;margin-top:8px">🪙 +${reward} コイン</div>`);
+    if (a.def.id === 'my') { // マイチーム：アイテムがもらえる・試合に出た選手は少し成長
+      const got = dropItems(res); let grown = 0;
+      for (const d of allData(a)) {
+        if (!d.played || !d.card) continue; const c = cardBy(d.card); if (!c) continue;
+        const ks = itemKeysFor(c).filter(k => k !== 'all');
+        for (let i = 0; i < 2; i++) grown += growCard(c, ks[(Math.random() * ks.length) | 0], rand(0.2, 0.45)) > 0 ? 1 : 0;
+      }
+      saveMy(); refreshMy();
+      document.getElementById('res-body').insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">🎒 アイテム：${got.map(k => ITEMS[k].e + ' ' + ITEMS[k].n).join('・')}　／　試合に出た選手が少し成長した</div>`);
+    }
   }
   const btns = document.getElementById('res-btns'); btns.innerHTML = '';
   const add = (label, cls, fn) => { const b2 = document.createElement('button'); b2.className = 'btn ' + cls; b2.style.width = '200px'; b2.textContent = label; b2.onclick = () => { Sound.play('click'); fn(); }; btns.appendChild(b2); };
@@ -4385,6 +4550,8 @@ function finishMatch() {
   setTimeout(() => { if (S && S.over) showScreen('sc-result'); }, 600);
   Sound.crowdTo(0.02, 2);
 }
+function camLabel() { const b = document.getElementById('p-cam'); b.style.display = teams[0] && teams[0].lockP ? '' : 'none'; b.textContent = settings.fpv !== false ? '📷 カメラ：一人称（押すと上から）' : '📷 カメラ：上から（押すと一人称）'; }
+document.getElementById('p-cam').onclick = () => { Sound.play('click'); settings.fpv = settings.fpv === false; saveSettings(); camLabel(); };
 function endToMenu() { clearMatch(); MODE = 'menu'; PAUSED = false; Sound.crowdTo(0, 0.5); }
 
 // ----- リーグ戦（6チームの総当たり、5試合） -----
@@ -4459,6 +4626,14 @@ function openLeague() {
 }
 
 // ----- ボタンのつなぎこみ -----
+// ホームのメニュー：えだわかれ
+function menuShow(sub) {
+  document.getElementById('menu-top').style.display = sub ? 'none' : '';
+  for (const k of ['match', 'team', 'help', 'etc']) document.getElementById('menu-' + k).style.display = sub === k ? 'grid' : 'none';
+  document.getElementById('menu-back').style.display = sub ? '' : 'none';
+}
+document.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { Sound.init(); Sound.play('click'); menuShow(b.dataset.sub); });
+document.getElementById('menu-back').onclick = () => { Sound.play('click'); menuShow(null); };
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
   Sound.init(); Sound.play('click');
   const g = b.dataset.go;
@@ -4467,6 +4642,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
   else if (g === 'tutorial') startTutorial();
   else if (g === 'myteam') openMyTeam();
   else if (g === 'gacha') openGacha();
+  else if (g === 'shop') openShop();
   else if (g === 'controls') { ctlTab(IS_TOUCH ? 'touch' : 'key'); showScreen('sc-controls'); }
   else if (g === 'online') { onlineWaitUI(null); onlineErr(''); teamPicker(document.getElementById('pick-on'), settings.team, id => { settings.team = id; saveSettings(); }); segPicker(document.getElementById('seg-len2'), LENS.map(n => n + '分'), Math.max(0, LENS.indexOf(settings.len)), i => { settings.len = LENS[i]; saveSettings(); }); showScreen('sc-online'); }
   else showScreen('sc-' + g);
@@ -4525,6 +4701,13 @@ function rollRarity(guarantee) {
   const r = Math.random();
   if (guarantee) return r < 0.2 ? 4 : 3;
   return r < 0.03 ? 4 : r < 0.15 ? 3 : r < 0.45 ? 2 : 1;
+}
+function openShop() {
+  myInit(); refreshMy();
+  const el = document.getElementById('shop-list');
+  el.innerHTML = Object.keys(ITEMS).map(k => `<div class="panel" style="text-align:center;min-width:150px"><div style="font-size:30px">${ITEMS[k].e}</div><b>${ITEMS[k].n}</b><div class="sub">${ITEMS[k].d}</div><div class="sub">持っている：${MY.items[k] || 0}</div><button class="btn gold small" data-k="${k}" style="width:auto">🪙${ITEM_PRICE[k]} で買う</button></div>`).join('');
+  el.querySelectorAll('button').forEach(b => b.onclick = () => { const k = b.dataset.k; if (MY.coins < ITEM_PRICE[k]) { localMsg('', 'コインが足りないよ', 1.6); Sound.play('click'); return; } MY.coins -= ITEM_PRICE[k]; MY.items[k] = (MY.items[k] || 0) + 1; saveMy(); refreshMy(); Sound.play('applause', 1); openShop(); });
+  showScreen('sc-shop');
 }
 function openGacha() { myInit(); refreshMy(); document.getElementById('g-res').innerHTML = '';
   // 期間つきのレジェンドガチャ（今やっているものだけ）
@@ -4655,8 +4838,11 @@ function openCardMenu(uid) {
   cmUid = uid; const c = cardBy(uid); if (!c) return;
   const used = usedUids().includes(uid), cost = 100 * (c.lv + 1);
   document.getElementById('cm-card').innerHTML = cardHTML(c);
-  const up = document.getElementById('cm-up'), sell = document.getElementById('cm-sell');
-  up.textContent = c.lv >= 5 ? '強化 MAX' : `強化する 🪙${cost}（全部 +2）`; up.disabled = c.lv >= 5;
+  const sell = document.getElementById('cm-sell');
+  const it = document.getElementById('cm-items'), cap = ADD_CAP[c.rar] || 8;
+  it.innerHTML = itemKeysFor(c).map(k => `<button class="btn small ${(MY.items[k] || 0) > 0 ? '' : 'gray'}" data-k="${k}" style="width:auto;padding:6px 10px">${ITEMS[k].e} ${ITEMS[k].n}<small>${ITEMS[k].d}・のこり ${MY.items[k] || 0}</small></button>`).join('')
+    + `<div class="sub" style="width:100%">育った分：${['sp', 'sh', 'pa', 'df', 'ph', 'gk'].filter(k => c.add && c.add[k] >= 0.5).map(k => STAT_JP[k] + ' +' + Math.round(c.add[k])).join('・') || 'まだなし'}（1つの能力につき +${cap} まで）</div>`;
+  it.querySelectorAll('button').forEach(b => b.onclick = () => { const r = useItem(c, b.dataset.k); Sound.play(r === true ? 'applause' : 'click', 1); if (r === 'max') document.getElementById('cm-msg').textContent = 'もうこれ以上のびないよ'; else if (!r) document.getElementById('cm-msg').textContent = 'アイテムがないよ（試合やショップで手に入る）'; else openCardMenu(cmUid); });
   sell.textContent = used ? '試合に出ているので売れない' : `売る 🪙+${SELL[c.rar]}`; sell.disabled = used;
   document.getElementById('cm-msg').innerHTML = (c.skills || []).map(k => `<div style="color:#ffe680">★ ${SKILLS[k].n}：${SKILLS[k].d}</div>`).join('') + (c.pos !== 'GK' ? `<div class="sub">向き：フィクソ${APT_MARK[c.apt.FIXO]} アラ${APT_MARK[c.apt.ALA]} ピヴォ${APT_MARK[c.apt.PIVO]}</div>` : '');
   showScreen('sc-cardmenu');
@@ -4767,8 +4953,9 @@ document.getElementById('h-go').onclick = () => { Sound.play('click'); PAUSED = 
 document.getElementById('subs-back').onclick = () => { Sound.play('click'); showScreen(subsFrom); };
 document.getElementById('setup-go').onclick = () => {
   Sound.init(); Sound.play('click');
-  if (setupMode === 'cpu') startCpuMatch(settings.team, settings.opp, settings.diff, settings.len, 'cpu');
-  else startLeague();
+  const [me, opp] = setupTeams(true);
+  if (setupMode === 'cpu') startCpuMatch(me, opp, settings.diff, settings.len, 'cpu');
+  else { const keep = settings.team; settings.team = me; startLeague(); settings.team = keep; saveSettings(); }
 };
 document.getElementById('on-create').onclick = () => { Sound.init(); Sound.play('click'); onlineCreate(); };
 document.getElementById('on-join').onclick = () => { Sound.init(); Sound.play('click'); onlineJoin(); };
@@ -4813,6 +5000,116 @@ if (!store.get('futsal-tut-done', 0) && !QS.get('auto') && !USE_LOCAL_NET) showS
 document.getElementById('loading').remove();
 
 let lastT = performance.now();
+// なりきりキーパー：相手のシュートが来たら、少しスローにして「セーブ」を押しやすくする
+function gkSlowCheck() {
+  const t = teams[0], g = t && t.lockP;
+  if (!g || g.role !== 'GK' || g.off || NET.role !== 'off' || S.phase !== 'play') return;
+  if (!ball.owner && ball.isShot && ball.shot && ball.shot !== S.slowShot && ball.lastTouch !== t && ball.v.x * t.dir < -3) {
+    S.slowShot = ball.shot; S.slowT = 0.55; localMsg('', '🧤 シュート！ セーブ！', 0.7);
+  }
+}
+// =====================================================================
+//  試合の前のプレビュー：チームのキャプテンがユニフォームを着て待っている（腕組み・リフティング）
+// =====================================================================
+var PV = { on: false, r: null, sc: null, cam: null, m: [null, null], key: [null, null], ball: [], pose: [0, 1], t: 0, cap: {}, kick: [0, 0] };
+function pvInit() {
+  if (PV.r) return true;
+  try { PV.r = new THREE.WebGLRenderer({ canvas: document.getElementById('pv-cv'), antialias: true, alpha: true }); } catch (e) { return false; }
+  PV.r.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  PV.sc = new THREE.Scene();
+  PV.sc.add(new THREE.HemisphereLight(0xffffff, 0x334466, 0.95));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.75); dl.position.set(2, 5, 6); PV.sc.add(dl);
+  const fl = new THREE.Mesh(new THREE.CircleGeometry(3.2, 40), new THREE.MeshLambertMaterial({ color: 0xc8955a })); fl.rotation.x = -Math.PI / 2; PV.sc.add(fl);
+  PV.cam = new THREE.PerspectiveCamera(30, 2, 0.1, 50);
+  for (let i = 0; i < 2; i++) { const b = ballMesh.clone(); b.visible = false; PV.sc.add(b); PV.ball.push(b); }
+  return true;
+}
+function pvCaptain(def) { // キャプテン：いちばん総合値が高いフィールドの選手（チームごとに1回だけ決める）
+  if (PV.cap[def.id]) return PV.cap[def.id];
+  const ro = makeRoster(def), f = ro.sets.flat().filter(d => d.pos !== 'GK');
+  const c = f.reduce((a, b) => ovr({ ...b.st, pos: b.pos === 'ALA_L' || b.pos === 'ALA_R' ? 'ALA' : b.pos, lv: 0 }) > ovr({ ...a.st, pos: a.pos === 'ALA_L' || a.pos === 'ALA_R' ? 'ALA' : a.pos, lv: 0 }) ? b : a);
+  if (c.skin == null) c.skin = SKINS[(Math.random() * SKINS.length) | 0];
+  return (PV.cap[def.id] = c);
+}
+function pvSet(i, def, kit, rnd) {
+  const n = document.getElementById('pv-n' + i), q = document.getElementById('pv-q' + i);
+  const key = def ? def.id + '|' + kit.shirt + kit.shorts + kit.num + '|' + (REAL.ready && settings.model !== 'simple') + (rnd ? '|r' : '') : '';
+  if (key === PV.key[i]) return;
+  PV.key[i] = key;
+  if (PV.m[i]) { PV.sc.remove(PV.m[i].outer); PV.m[i] = null; }
+  q.style.display = def && !rnd ? 'none' : 'block'; PV.ball[i].visible = false;
+  if (!def) { n.innerHTML = 'おまかせ<small>キックオフで決まる</small>'; return; }
+  const c = pvCaptain(def), mk = key.replace('|r', '') + '|' + i;   // 一度作った選手は取っておいて、また使う
+  PV.cache = PV.cache || {};
+  if (PV.m[1 - i] === PV.cache[mk]) delete PV.cache[mk];
+  let m = PV.cache[mk];
+  if (!m) { m = buildPlayerMesh(kit, c.num, false, c.skin); scene.remove(m.outer); PV.cache[mk] = m; }
+  PV.sc.add(m.outer); PV.m[i] = m;
+  m.outer.position.set(i ? 0.8 : -0.8, 0, 0); m.outer.rotation.y = i ? -0.3 : 0.3;
+  if (m.real) realPlay(m, 'idle', { fade: 0 });
+  n.innerHTML = rnd ? `🎲 おまかせ<small>キックオフで決まる（いまは ${def.name}）</small>` : `${def.name}<small>キャプテン ${c.name} #${c.num}・${kit.w === 'away' ? 'アウェー' : kit.w === 'third' ? 'サード' : 'ホーム'}${kit.forced ? '・色かぶり' : ''}</small>`;
+}
+function pvRoll(ex) { // おまかせ のときにプレビューで見せるチーム（ルーレット）
+  const all = (TEAM_BY.my ? ['my'] : []).concat(TEAMS.map(t => t.id)).filter(i => !ex.includes(i));
+  PV.ri = ((PV.ri || 0) + 1) % all.length; return all[PV.ri];
+}
+function pvUpdate() {
+  if (!pvInit()) { document.getElementById('pv').style.display = 'none'; return; }
+  let [a, b] = setupTeams(false); const cpu = setupMode === 'cpu', rA = !a, rB = !b;
+  if (rA) a = PV.rA && PV.rA !== b ? PV.rA : (PV.rA = pvRoll([b]));
+  if (rB) b = PV.rB && PV.rB !== a ? PV.rB : (PV.rB = pvRoll([a]));
+  const d0 = a && TEAM_BY[a], d1 = cpu && b ? TEAM_BY[b] : null;
+  const kits = makeKits(d0 || d1 || TEAMS[0], d1 || TEAMS[1], settings.kit0 || 'home', settings.kit1 || 'home');
+  pvSet(0, d0, kits[0], rA); pvSet(1, cpu ? d1 : null, kits[1], rB);
+  if (!cpu) { document.getElementById('pv-q1').style.display = 'none'; document.getElementById('pv-n1').innerHTML = ''; }
+  document.getElementById('pv-vs').style.display = cpu ? '' : 'none';
+}
+// 腕組み・リフティングのポーズ（PVP の数字で角度を決める）
+const PVP = {
+  cross: { L: [-0.008, 0.701, 1.662], R: [-0.117, -0.86, -1.707], LF: [0, 0.024, 1.551], RF: [0, 0.024, -1.583] },   // 手と ひじ の場所から計算した角度
+};
+function pvPose(m, i, t) {
+  const P = PVP.cross, mode = PV.pose[i], ball = PV.ball[i];
+  // リフティング：右足でボールをけり上げる（0.62秒で1回）
+  const per = 0.62, ph = ((t + i * 0.31) % per) / per, kickK = Math.max(0, Math.cos(ph * Math.PI * 2)) ** 2;   // ボールが足に当たる時（ph=0）に足がいちばん上
+  if (m.real) {
+    const b = m.bones;
+    if (mode === 0) { // 腕を組む
+      b.LeftArm.rotation.set(...P.L); b.RightArm.rotation.set(...P.R); b.LeftForeArm.rotation.set(...P.LF); b.RightForeArm.rotation.set(...P.RF);
+    } else if (b.RightUpLeg) {
+      b.RightUpLeg.rotation.x += -0.9 * kickK; b.RightLeg.rotation.x += 0.9 * kickK;
+    }
+  } else {
+    const A = m.arms, L = m.legs;
+    if (mode === 0) { A[0].sh.rotation.set(-1.2, 0, -0.5); A[0].elbow.rotation.set(-1.5, 0, 0); A[1].sh.rotation.set(-1.2, 0, 0.5); A[1].elbow.rotation.set(-1.5, 0, 0); for (const l of L) { l.hip.rotation.set(0, 0, 0); l.knee.rotation.set(0, 0, 0); } }
+    else { for (const a of A) { a.sh.rotation.set(0, 0, a === A[0] ? 0.3 : -0.3); a.elbow.rotation.set(-0.3, 0, 0); } L[1].hip.rotation.set(-1.0 * kickK, 0, 0); L[1].knee.rotation.set(0.9 * kickK, 0, 0); L[0].hip.rotation.set(0, 0, 0); L[0].knee.rotation.set(0, 0, 0); }
+  }
+  // ボール：足に当たって上がり、落ちてくる
+  ball.visible = mode === 1;
+  if (mode === 1) {
+    const o = m.outer, side = -0.12, fwd = 0.32, h = 0.34 + 0.8 * 4 * ph * (1 - ph);
+    const c = Math.cos(o.rotation.y), s = Math.sin(o.rotation.y);
+    ball.position.set(o.position.x + side * c + fwd * s, h, o.position.z - side * s + fwd * c);
+    ball.rotation.x += 0.15;
+  }
+}
+function pvFrame(dt) {
+  if (!PV.on || !PV.r) return;
+  const cv = PV.r.domElement, w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  if (cv.width !== Math.round(w * PV.r.getPixelRatio()) || cv.height !== Math.round(h * PV.r.getPixelRatio())) { PV.r.setSize(w, h, false); PV.cam.aspect = w / h; PV.cam.updateProjectionMatrix(); }
+  PV.t += dt;
+  if (PV.t > 7) { PV.t = 0; PV.pose = [PV.pose[0] ^ 1, PV.pose[1] ^ 1]; }   // 7秒ごとに、腕組みとリフティングを入れかえる
+  PV.rt = (PV.rt || 0) + dt;
+  if (PV.rt > 2.2) { PV.rt = 0; if (settings.teamRnd || settings.oppRnd) { if (settings.teamRnd) PV.rA = null; if (settings.oppRnd) PV.rB = null; pvUpdate(); } }   // おまかせ：キャプテンが入れかわる
+  const T = performance.now() / 1000;
+  for (let i = 0; i < 2; i++) { const m = PV.m[i]; if (!m) { PV.ball[i].visible = false; continue; } if (m.mixer) m.mixer.update(dt); pvPose(m, i, T); }
+  const one = !PV.m[1] && setupMode !== 'cpu';
+  const dc = PV.dbgCam;   // テスト用：カメラの場所
+  if (dc) { PV.cam.position.set(dc[0], dc[1], dc[2]); PV.cam.lookAt(dc[3], dc[4], dc[5]); }
+  else { PV.cam.position.set(one ? -0.8 : 0, 1.2, 3.9); PV.cam.lookAt(one ? -0.8 : 0, 0.92, 0); }
+  PV.r.render(PV.sc, PV.cam);
+}
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
@@ -4820,12 +5117,13 @@ function frame(now) {
   if (MODE === 'match' && S) {
     if (NET.role === 'guest') { guestFrame(dt); guestSend(now); }
     else {
-      if (!PAUSED && !S.over) step(dt * (window.__speed || 1));
+      if (!PAUSED && !S.over) { gkSlowCheck(); const sl = S.slowT > 0 ? 0.5 : 1; S.slowT -= dt; step(dt * (window.__speed || 1) * sl); }
       if (NET.role === 'host') hostSend(now);
     }
     renderMatch(dt);
   } else menuCamera(dt);
   renderer.render(scene, camera);
+  if (PV.on) pvFrame(dt);
 }
 requestAnimationFrame(frame);
 
@@ -4904,6 +5202,7 @@ function carAfterMatch(gf, ga, ms, simulated) {
   saveCar();
   return { rating, res, grow };
 }
+const avg2 = h => h.avg;
 function carSeasonEnd() {
   const rank = carTable().findIndex(r => r[0] === CAR.club) + 1, c = CAR.cur, avg = c.apps ? c.rsum / c.apps : 0;
   const aw = [];
@@ -4913,9 +5212,20 @@ function carSeasonEnd() {
   if (CAR.pos !== 'GK' && c.goals >= Math.max(8, c.apps * 0.9)) aw.push('⚽ 得点王');
   CAR.history.push({ season: CAR.season, age: CAR.age, club: CAR.club, apps: c.apps, goals: c.goals, assists: c.assists, avg: Math.round(avg * 10) / 10, rank, aw, ovr: proOvr(CAR.st, CAR.pos) });
   CAR.tot.apps += c.apps; CAR.tot.goals += c.goals; CAR.tot.assists += c.assists; CAR.tot.rsum += c.rsum; CAR.awards.push(...aw);
-  // オファー：今の力とシーズンの評価に合うクラブから（いい成績なら強いクラブも）
-  const me = proOvr(CAR.st, CAR.pos) + (avg - 6.5) * 4;
-  CAR.offers = TEAMS.filter(t => t.id !== CAR.club).map(t => ({ id: t.id, s: -Math.abs(teamPower(t) - me - 1) + rand(0, 3) })).sort((a, b) => b.s - a.s).slice(0, avg >= 7.2 ? 3 : 2).map(o => o.id);
+  // オファー：活やくしたら強いクラブから。活やくできなかったら、あまり強くないクラブへ移籍させられる
+  const cur = teamPower(TEAM_BY[CAR.club]), others = TEAMS.filter(t => t.id !== CAR.club);
+  CAR.forced = false; CAR.numChance = false;
+  if (c.apps >= 5 && avg >= 7.0) { // 大活やく：今より強いクラブ（いちばん強いところも）
+    const strong = others.filter(t => teamPower(t) > cur - 1).sort((a, b) => teamPower(b) - teamPower(a));
+    CAR.offers = (strong.length ? strong : others).slice(0, avg >= 7.5 ? 3 : 2).map(t => t.id);
+    if (!['10', '9', '7', '11', '8', '1', '12'].includes(String(CAR.num))) CAR.numChance = true;   // いい背番号に変えるチャンス
+  } else if (c.apps >= 5 && avg < 6.0) { // 活やくできなかった：クラブの方針で、今より弱いクラブへ
+    const weak = others.filter(t => teamPower(t) < cur).sort((a, b) => teamPower(b) - teamPower(a));
+    CAR.offers = weak.slice(0, 2).map(t => t.id); CAR.forced = CAR.offers.length > 0;
+  } else { // ふつう：同じくらいの強さのクラブ
+    const me = proOvr(CAR.st, CAR.pos) + (avg - 6.5) * 4;
+    CAR.offers = others.map(t => ({ id: t.id, s: -Math.abs(teamPower(t) - me - 1) + rand(0, 3) })).sort((a, b) => b.s - a.s).slice(0, 2).map(o => o.id);
+  }
   CAR.seasonOver = true;
 }
 function carNextSeason(moveTo) {
@@ -4952,17 +5262,25 @@ function openCareer() {
     const hs = CAR.history[CAR.history.length - 1];
     h += `<div style="text-align:center;margin-top:10px"><div style="font-size:20px;font-weight:900">第${CAR.season}シーズン終了！ ${hs.rank}位</div>
       <div>${hs.apps}試合 ${hs.goals}得点 ${hs.assists}アシスト・平均評価 ${hs.avg}</div><div style="color:#ffd400;font-weight:900">${hs.aw.join('　') || ''}</div>
+      ${CAR.forced ? `<div style="color:#ff8a80;font-weight:900;margin-top:6px">😢 あまり活やくできなかった…。クラブの方針で、移籍することになった</div>` : avg2(hs) >= 7.0 ? `<div style="color:#3ddc84;font-weight:900;margin-top:6px">🌟 大活やく！ 強いクラブからオファーが来た</div>` : ''}
+      ${CAR.numChance ? `<div class="label" style="margin-top:8px">🎽 いい背番号に変えるチャンス！（今は #${CAR.num}）</div><div class="row" id="car-num" style="margin:4px 0"></div>` : ''}
       <div class="label" style="margin-top:8px">来シーズン、どうする？</div></div>`;
     btns.innerHTML = '';
     const b = (label, cls, fn) => { const e = document.createElement('button'); e.className = 'btn ' + cls; e.style.width = '230px'; e.innerHTML = label; e.onclick = () => { Sound.play('click'); fn(); }; btns.appendChild(e); };
     if (CAR.age >= 40) { h += `<div class="sub" style="text-align:center">40歳。ここで引退だね。おつかれさま！</div>`; b('🎉 引退する', 'gold', carRetire); }
     else {
-      b(`残る（${TEAM_BY[CAR.club].name}）`, 'green', () => carNextSeason(null));
+      if (!CAR.forced) b(`残る（${TEAM_BY[CAR.club].name}）`, 'green', () => carNextSeason(null));
       for (const id of CAR.offers || []) b(`移籍：${TEAM_BY[id].name}<small>オファー・強さ ${stars(TEAM_BY[id])}</small>`, '', () => { if (confirm(TEAM_BY[id].name + ' に移籍する？')) carNextSeason(id); });
       if (CAR.age >= 33) b('🎉 引退する', 'gray', () => { if (confirm('引退する？（キャリアは終わり）')) carRetire(); });
     }
     b('📜 キャリアの記録', 'gray small', carHistory);
-    body.innerHTML = h; showScreen('sc-career'); return;
+    body.innerHTML = h;
+    if (CAR.numChance) { // 背番号をえらぶ
+      const el = document.getElementById('car-num'), good = CAR.pos === 'GK' ? [1, 12] : [10, 9, 7, 11, 8];
+      el.innerHTML = good.map(n => `<button class="btn small gold" data-n="${n}" style="width:auto;padding:6px 14px">#${n}</button>`).join('') + `<button class="btn small gray" data-n="0" style="width:auto">このまま #${CAR.num}</button>`;
+      el.querySelectorAll('button').forEach(e => e.onclick = () => { Sound.play('click'); const n = +e.dataset.n; if (n) { CAR.num = n; localMsg('', `🎽 背番号が #${n} になった！`, 1.8); } CAR.numChance = false; saveCar(); openCareer(); });
+    }
+    showScreen('sc-career'); return;
   }
   const pair = carNextPair(); saveCar();
   if (!pair) { carSeasonEnd(); saveCar(); openCareer(); return; }
@@ -5018,17 +5336,16 @@ function openCareerNew() {
   document.getElementById('cn-err').textContent = '';
   showScreen('sc-car-new');
 }
-function clubPicker(el, list, sel, onPick) {
-  el.innerHTML = list.map(t => `<button class="btn small ${t.id === sel ? 'gold' : 'gray'}" data-id="${t.id}" style="width:auto;padding:6px 10px">${teamChip(t.id)}</button>`).join('');
-  el.querySelectorAll('button').forEach(b => b.onclick = () => { Sound.play('click'); onPick(b.dataset.id); clubPicker(el, list, b.dataset.id, onPick); });
+function clubPicker(el, list, sel, onPick, rnd) { // rnd：「おまかせ」ボタンも出す（id は 'random'）
+  el.innerHTML = (rnd ? `<button class="btn small ${sel === 'random' ? 'gold' : 'gray'}" data-id="random" style="width:auto;padding:6px 10px">🎲 おまかせ</button>` : '') + list.map(t => `<button class="btn small ${t.id === sel ? 'gold' : 'gray'}" data-id="${t.id}" style="width:auto;padding:6px 10px">${teamChip(t.id)}</button>`).join('');
+  el.querySelectorAll('button').forEach(b => b.onclick = () => { Sound.play('click'); onPick(b.dataset.id); clubPicker(el, list, b.dataset.id, onPick, rnd); });
 }
 document.getElementById('cn-back').onclick = () => { Sound.play('click'); showScreen('sc-pro'); };
 document.getElementById('cn-go').onclick = () => {
-  const name = document.getElementById('cn-name').value.trim(), num = Math.round(+document.getElementById('cn-num').value);
+  const name = document.getElementById('cn-name').value.trim(), num = cnPos === 'GK' ? 21 + ((Math.random() * 11) | 0) : 16 + ((Math.random() * 16) | 0);   // 背番号はクラブが決める（新人なので大きい番号）
   const err = document.getElementById('cn-err');
   if (!name) { err.textContent = '名前を入れてね'; return; }
   if (BAD_WORDS.some(w => name.toLowerCase().includes(w))) { err.textContent = 'その名前は使えないよ'; return; }
-  if (!(num >= 1 && num <= 99)) { err.textContent = '背番号は 1〜99'; return; }
   if (CAR && !CAR.retired && !confirm('今のキャリアは消えるよ。新しく作る？')) return;
   const b = 58, v = () => b + rand(-2, 3);
   const st = { sp: v(), sh: v(), pa: v(), df: v(), gk: 40, ph: v() - 2 };
@@ -5044,9 +5361,9 @@ let pqTeam = null, pqKey = null, pqOpp = null;
 function openProQuick() {
   const list = (TEAM_BY.my ? [TEAM_BY.my] : []).concat(TEAMS);
   if (!pqTeam || !TEAM_BY[pqTeam]) pqTeam = (CAR && !CAR.retired) ? CAR.club : list[0].id;
-  if (!pqOpp || !TEAM_BY[pqOpp] || pqOpp === pqTeam) pqOpp = TEAMS.find(t => t.id !== pqTeam).id;
+  if (!pqOpp || (pqOpp !== 'random' && !TEAM_BY[pqOpp]) || pqOpp === pqTeam) pqOpp = TEAMS.find(t => t.id !== pqTeam).id;
   clubPicker(document.getElementById('pq-team'), list, pqTeam, id => { pqTeam = id; pqKey = null; openProQuick(); });
-  clubPicker(document.getElementById('pq-opp'), TEAMS, pqOpp, id => { pqOpp = id; });
+  clubPicker(document.getElementById('pq-opp'), TEAMS, pqOpp, id => { pqOpp = id; }, true);
   // なりきる選手：作った選手（キャリア）か、そのチームの選手
   const roster = makeRoster(TEAM_BY[pqTeam]), all = [...roster.gk, ...roster.sets.flat()];
   const opts = [];
@@ -5062,8 +5379,9 @@ document.getElementById('pro-quick').onclick = () => { Sound.init(); Sound.play(
 document.getElementById('pq-go').onclick = () => {
   Sound.init(); tryFullscreen();
   if (pqOpp === pqTeam) { localMsg('', 'ちがうチームとたたかってね', 1.6); return; }
+  const opp = pqOpp === 'random' ? (c => c[(Math.random() * c.length) | 0])(TEAMS.filter(t => t.id !== pqTeam)).id : pqOpp;   // おまかせ：ここで決める
   const lock = pqKey === 'CAR' ? { data: careerData() } : { key: pqKey };
-  newMatch({ mode: 'pro', home: pqTeam, away: pqOpp, diff: settings.diff, len: settings.len, role: 'off', lock });
+  newMatch({ mode: 'pro', home: pqTeam, away: opp, diff: settings.diff, len: settings.len, role: 'off', lock });
   showScreen(null);
 };
 // 試合のあと（なりきり）：評価と成績
