@@ -514,6 +514,13 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="row"><button class="btn gray small" id="cn-back">← もどる</button><button class="btn red" id="cn-go" style="width:200px">キャリアをはじめる</button></div>
 </div></div>
 
+<div class="screen" id="sc-car-slots"><div class="wrap">
+  <h2>📈 キャリア：セーブデータ</h2>
+  <div class="sub">選手を5人まで、べつべつに育てられるよ。わくを押して続きから。🗑 で消す</div>
+  <div id="cs-list" style="width:100%;max-width:560px"></div>
+  <button class="btn gray small" data-go="pro">← もどる</button>
+</div></div>
+
 <div class="screen" id="sc-career"><div class="wrap">
   <h2 id="car-title">📈 キャリア</h2>
   <div class="panel" id="car-body"></div>
@@ -3023,7 +3030,8 @@ function gkSaveCheck() { // キーパーのセーブ
       let Rh = R;
       if (g.humanGK && g.team.lockP === g) { // なりきりキーパー：セーブボタンの向き・タイミング
         const us = g.userSave, ok = us && S.time - us.t < 1.0, side = sgn(ball.p.z - (sh0 ? sh0.gz : g.pos.z));
-        Rh = R * (!ok ? 0.7 : us.side === 0 ? (need < 0.8 ? 1.15 : 0.75) : us.side === side ? 1.15 : (need < 0.45 ? 0.9 : 0.3));
+        // セーブを押していないとき：弱いボールが足元（体のすぐ近く）に来たときだけ止める
+        Rh = !ok ? (spd < 12 && need < 0.6 && ball.p.y < 0.6 ? R : 0) : R * (us.side === 0 ? (need < 0.8 ? 1.15 : 0.75) : us.side === side ? 1.15 : (need < 0.45 ? 0.9 : 0.3));
         g.userSave = null;
       }
       if (!inArea(g.pos, t)) Rh *= 0.35;   // ペナルティエリアの外：手は使えないので、体や足で当たるだけ
@@ -3902,7 +3910,7 @@ function step(dt) {
     }
   }
   else if (ph === 'end') { S.phaseT -= dt; if (S.phaseT <= 0) { S.phase = 'over'; finishMatch(); } }
-  if (S.phase === 'play') { S.clock += dt; if (S.clock >= S.halfLen) endHalf(); } // ボールが外に出ている間（キックインなど）は時計が止まる
+  if (S.phase === 'play') { S.clock += dt; if (S.clock >= S.halfLen) endHalf(); else carSubCheck(); } // ボールが外に出ている間（キックインなど）は時計が止まる
   if (S.cfg.mode === 'tutorial' && TUT) tutUpdate(dt);
   // 4秒ルール：キーパーが自分の陣地で4秒以上ボールを持ったら反則（相手の間接フリーキック）
   for (const t of teams) {
@@ -5462,8 +5470,25 @@ if (QS.get('auto')) { newMatch({ mode: 'cpu', home: 'tokyo', away: 'osaka', diff
 const POS4 = [['GK', 'ゴレイロ'], ['FIXO', 'フィクソ'], ['ALA', 'アラ'], ['PIVO', 'ピヴォ']];
 const STAT_JP = { sp: '速さ', sh: 'シュート', pa: 'パス', df: '守備', gk: 'キーパー', ph: '体' };
 const FOCUS = { GK: ['gk', 'pa', 'ph'], FIXO: ['df', 'pa', 'sh', 'sp', 'ph'], ALA: ['sp', 'pa', 'sh', 'df', 'ph'], PIVO: ['sh', 'ph', 'pa', 'sp', 'df'] };
-let CAR = store.get('futsal-career', null);
-const saveCar = () => store.set('futsal-career', CAR);
+// キャリアのセーブデータ：5人分。前の1人分のデータは、1番目のわくに入れる
+const CAR_SLOTS = 5;
+let CARS = store.get('futsal-career-slots', null);
+if (!Array.isArray(CARS)) { CARS = Array(CAR_SLOTS).fill(null); const old = store.get('futsal-career', null); if (old) CARS[0] = old; store.set('futsal-career-slots', CARS); }
+while (CARS.length < CAR_SLOTS) CARS.push(null);
+let carSlot = clamp(store.get('futsal-career-slot', 0) | 0, 0, CAR_SLOTS - 1);
+let CAR = CARS[carSlot] || null;
+const saveCar = () => { CARS[carSlot] = CAR; store.set('futsal-career-slots', CARS); store.set('futsal-career-slot', carSlot); };
+function openCarSlots() {
+  const el = document.getElementById('cs-list');
+  el.innerHTML = CARS.map((c, i) => c ? `<div class="panel" style="display:flex;align-items:center;gap:8px;margin:6px 0;${i === carSlot ? 'border:2px solid #ffd400' : ''}">
+      <button class="btn ${c.retired ? 'gray' : 'gold'}" data-cs="${i}" style="flex:1;width:auto;text-align:left">${i + 1}. ⭐ ${c.name} #${c.num}<small>${POS4.find(p => p[0] === c.pos)?.[1] || c.pos}・${TEAM_BY[c.club] ? TEAM_BY[c.club].name : ''}・シーズン${c.season}・${c.age}さい・総合${proOvr(c.st, c.pos)}${c.retired ? '・引退' : ''}</small></button>
+      <button class="btn red small" data-del="${i}" style="width:auto">🗑</button></div>`
+    : `<div class="panel" style="margin:6px 0"><button class="btn" data-new="${i}" style="width:100%">${i + 1}. ＋ 新しく作る<small>空いているわく</small></button></div>`).join('');
+  el.querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { Sound.play('click'); carSlot = +b.dataset.cs; CAR = CARS[carSlot]; store.set('futsal-career-slot', carSlot); if (CAR.retired) carHistory(); else openCareer(); });
+  el.querySelectorAll('[data-new]').forEach(b => b.onclick = () => { Sound.play('click'); carSlot = +b.dataset.new; CAR = null; store.set('futsal-career-slot', carSlot); openCareerNew(); });
+  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const i = +b.dataset.del, c = CARS[i]; if (!confirm(`${i + 1}. ${c.name} のセーブデータを消す？（元にもどせないよ）`)) return; Sound.play('click'); CARS[i] = null; if (i === carSlot) CAR = null; store.set('futsal-career-slots', CARS); openCarSlots(); });
+  showScreen('sc-car-slots');
+}
 const proOvr = (st, pos) => ovr({ ...st, pos: pos === 'ALA_L' || pos === 'ALA_R' ? 'ALA' : pos, lv: 0 });
 // 試合の評価（10点満点）
 function matchRating(ms, isGK, res) {
@@ -5494,6 +5519,53 @@ function carAddResult(a, b, ga, gb) {
   if (ga > gb) { A.w++; B.l++; } else if (ga < gb) { B.w++; A.l++; } else { A.d++; B.d++; }
 }
 const carTable = () => Object.entries(CAR.table).sort((x, y) => { const A = x[1], B = y[1]; return (B.w * 3 + B.d) - (A.w * 3 + A.d) || (B.gf - B.ga) - (A.gf - A.ga) || B.gf - A.gf; });
+// ----- 監督の判断：次の試合にどれだけ出られるか（同じポジションの仲間との差と、監督の信頼で決まる） -----
+const CAR_SLOTS_POS = { GK: 1, FIXO: 2, ALA: 4, PIVO: 2 };   // ふだん試合に出る人数（ポジションごと）
+function carRole() {
+  const key = CAR.season + '-' + CAR.md;
+  if (CAR.role && CAR.role.key === key) return CAR.role;
+  if (CAR.trust == null) CAR.trust = Math.min(75, 30 + ((CAR.tot && CAR.tot.apps) || 0) * 1.5);   // 前の版のキャリア：今までの出場数に合わせて信頼をつける
+  const def = TEAM_BY[CAR.club], ro = def.roster ? def.roster : makeRoster(def), pos = CAR.pos;
+  const ov = d => ovr({ ...d.st, pos: d.pos === 'GK' ? 'GK' : d.pos, lv: 0 });
+  const mates = (pos === 'GK' ? ro.gk : ro.sets.flat().filter(d => d.pos === pos)).map(ov).sort((a, b) => b - a);
+  const n = CAR_SLOTS_POS[pos] || 2, top = mates.slice(0, n), ref = top.length ? top.reduce((a, b) => a + b, 0) / top.length : 70;
+  const score = CAR.trust + (proOvr(CAR.st, pos) - ref) * 1.5 + rand(-8, 8);
+  let type, min = 0;
+  if (pos === 'GK') { type = score >= 50 ? 'start' : score >= 35 && Math.random() < 0.25 ? 'sub' : 'out'; if (type === 'sub') min = 20; }
+  else if (score >= 58) type = 'start';
+  else if (score >= 44) { type = 'startOff'; min = Math.round(rand(16, 30)); }
+  else if (score >= 28) { type = 'sub'; min = Math.round(rand(22, 34)); }
+  else type = 'out';
+  CAR.role = { key, type, min }; saveCar(); return CAR.role;
+}
+function roleText(r) {
+  return { start: '⭐ 先発・フル出場', startOff: `⏱ 先発（${r.min}分ごろに交代の予定）`, sub: `🔄 ベンチスタート（${r.min}分ごろから途中出場）`, out: '🪑 ベンチ（今節は出場なし）' }[r.type];
+}
+// 途中出場：この時間から試合を始める（それまでの点は計算で決める）
+function carJump(min) {
+  const f = min / 40, thin = n => { let k = 0; for (let i = 0; i < n; i++) if (Math.random() < f) k++; return k; };
+  teams[0].score = thin(simGoals(teams[0].def.id, teams[1].def.id)); teams[1].score = thin(simGoals(teams[1].def.id, teams[0].def.id));
+  if (min >= 20) { S.htShown = true; secondHalf(); S.clock = (min - 20) / 20 * S.halfLen; } else S.clock = min / 20 * S.halfLen;
+  updateScoreboard(true);
+  setTimeout(() => showMsg('🔄 途中出場', `${min}分から出場！ いま ${teams[0].score} - ${teams[1].score}`, 2.4), 600);
+}
+// 先発で途中交代：その時間になったら交代して、残りの時間は計算で決める
+function carSubCheck() {
+  const r = S.cfg.carRole; if (!r || r.type !== 'startOff' || S.subbedOff || S.phase !== 'play') return;
+  if (minuteNow() < r.min) return;
+  S.subbedOff = true;
+  const f = 1 - r.min / 40, thin = n => { let k = 0; for (let i = 0; i < n; i++) if (Math.random() < f) k++; return k; };
+  const a = thin(simGoals(teams[0].def.id, teams[1].def.id)), b = thin(simGoals(teams[1].def.id, teams[0].def.id));
+  teams[0].score += a; teams[1].score += b; updateScoreboard(true);
+  showMsg('🔄 交代', `${r.min}分で交代。ベンチから見守った… 最後は ${teams[0].score} - ${teams[1].score}`, 3);
+  S.half = 2; S.clock = S.halfLen; S.deadNext = null; if (S.sp) { S.sp.taker.locked = false; S.sp = null; } S.phase = 'end'; S.phaseT = 3.2; sfx('whistle', 3);
+}
+// 出場なし：結果だけ（練習で少し成長・監督の信頼が少し上がる）
+function carWatch(opp) {
+  const gf = simGoals(CAR.club, opp), ga = simGoals(opp, CAR.club);
+  carAfterMatch(gf, ga, { goals: 0, assists: 0 }, true, false);
+  localMsg('', `vs ${TEAM_BY[opp].short} ${gf}-${ga}・今節は出場なし（練習で少し成長）`, 2.6); openCareer();
+}
 function carNextPair() { // 次の自分の試合（お休みの節は、ほかの試合だけ進める）
   while (CAR.md < CAR.fixtures.length) {
     const pair = CAR.fixtures[CAR.md].find(p => p.includes(CAR.club));
@@ -5504,9 +5576,9 @@ function carNextPair() { // 次の自分の試合（お休みの節は、ほか�
   return null;
 }
 // 1試合が終わったあと：評価・成長・リーグ
-function carAfterMatch(gf, ga, ms, simulated) {
+function carAfterMatch(gf, ga, ms, simulated, played = true) {
   const res = gf > ga ? 'win' : gf < ga ? 'lose' : 'draw';
-  const rating = simulated ? Math.round(clamp(6.2 + (proOvr(CAR.st, CAR.pos) - teamPower(TEAM_BY[CAR.club])) / 10 + randn() * 0.6 + ms.goals * 0.8 + ms.assists * 0.5 + (res === 'win' ? 0.3 : res === 'lose' ? -0.3 : 0), 4, 9.5) * 10) / 10
+  const rating = !played ? null : simulated ? Math.round(clamp(6.2 + (proOvr(CAR.st, CAR.pos) - teamPower(TEAM_BY[CAR.club])) / 10 + randn() * 0.6 + ms.goals * 0.8 + ms.assists * 0.5 + (res === 'win' ? 0.3 : res === 'lose' ? -0.3 : 0), 4, 9.5) * 10) / 10
     : matchRating(ms, CAR.pos === 'GK', res);
   const pair = carNextPair();
   if (pair) {
@@ -5516,15 +5588,21 @@ function carAfterMatch(gf, ga, ms, simulated) {
     }
     CAR.md++;
   }
-  const c = CAR.cur; c.apps++; c.goals += ms.goals; c.assists += ms.assists; c.rsum += rating; c.last.unshift(rating); c.last = c.last.slice(0, 5);
+  const c = CAR.cur;
+  if (played) { c.apps++; c.goals += ms.goals; c.assists += ms.assists; c.rsum += rating; c.last.unshift(rating); c.last = c.last.slice(0, 5); }
+  if (CAR.trust == null) CAR.trust = 30;
+  CAR.trust = clamp(CAR.trust + (played ? clamp((rating - 6.3) * 7, -8, 10) : 4), 0, 100);   // 監督の信頼：いい評価で上がる。ベンチでも練習で少し上がる
   // 成長：えらんだトレーニングの能力が中心。若いほど、評価が高いほどのびる。目標（ポテンシャル）に近づくとのびにくい
   const af = CAR.age <= 21 ? 1.4 : CAR.age <= 25 ? 1.1 : CAR.age <= 29 ? 0.7 : CAR.age <= 32 ? 0.3 : 0;
   const near = proOvr(CAR.st, CAR.pos) >= CAR.pot ? 0.15 : 1;
   const grow = {}, add = (k, v) => { const before = CAR.st[k]; CAR.st[k] = Math.min(99, CAR.st[k] + v); grow[k] = (grow[k] || 0) + (CAR.st[k] - before); };
-  const q = 0.6 + (rating - 5) / 4;   // 評価が高いほどのびる
-  add(CAR.focus, 0.75 * af * near * q);
-  const others = FOCUS[CAR.pos].filter(k => k !== CAR.focus); add(others[(Math.random() * others.length) | 0], 0.3 * af * near * q);
-  for (const k of FOCUS[CAR.pos]) add(k, 0.12 * af * near);   // 試合に出ると、全部が少しずつのびる
+  if (!played) add(CAR.focus, 0.3 * af * near);   // 出られなくても、練習で少しのびる
+  else {
+    const q = 0.6 + (rating - 5) / 4;   // 評価が高いほどのびる
+    add(CAR.focus, 0.75 * af * near * q);
+    const others = FOCUS[CAR.pos].filter(k => k !== CAR.focus); add(others[(Math.random() * others.length) | 0], 0.3 * af * near * q);
+    for (const k of FOCUS[CAR.pos]) add(k, 0.12 * af * near);   // 試合に出ると、全部が少しずつのびる
+  }
   if (!CAR.seasonOver && !carNextPair()) carSeasonEnd();
   saveCar();
   return { rating, res, grow };
@@ -5556,7 +5634,7 @@ function carSeasonEnd() {
   CAR.seasonOver = true;
 }
 function carNextSeason(moveTo) {
-  if (moveTo) CAR.club = moveTo;
+  if (moveTo) { CAR.club = moveTo; CAR.trust = 30; CAR.role = null; }   // 新しいクラブでは、監督の信頼はまた低いところから
   CAR.season++; CAR.age++;
   // 年齢で能力が変わる：若いうちは自然にのびて、ピークのあとは落ちていく（ゴレイロはピークがおそい）
   const a = CAR.age - (CAR.pos === 'GK' ? 2 : 0), ch = {};
@@ -5612,18 +5690,24 @@ function openCareer() {
   const pair = carNextPair(); saveCar();
   if (!pair) { carSeasonEnd(); saveCar(); openCareer(); return; }
   const opp = pair[0] === CAR.club ? pair[1] : pair[0];
+  const role = carRole();
   if (CAR.ageChange && CAR.md === 0) h += `<div style="text-align:center;margin-top:8px" class="sub">🎂 ${CAR.age}歳になった。年齢による変化：${Object.entries(CAR.ageChange).filter(([, v]) => Math.abs(v) >= 0.3).map(([k, v]) => `${STAT_JP[k]} <b style="color:${v > 0 ? '#3ddc84' : '#ff8a80'}">${v > 0 ? '+' : ''}${v.toFixed(1)}</b>`).join('・') || 'ほとんどなし'}</div>`;
   h += `<div style="text-align:center;margin-top:10px"><span class="label">第${CAR.season}シーズン・第${CAR.md + 1}節（全${CAR.fixtures.length}節）・いま ${rank}位</span>
     <div style="font-size:18px;font-weight:900;margin:4px 0">次の試合：vs ${teamChip(opp)}</div>
     <div class="sub">今シーズン ${c.apps}試合 ${c.goals}得点 ${c.assists}アシスト・平均評価 ${avg}${c.last.length ? '・最近 ' + c.last.join(' / ') : ''}</div>
+    <div style="margin-top:6px;font-weight:900">監督の判断：${roleText(role)}</div>
+    <div class="sub">監督の信頼 ${Math.round(CAR.trust)} / 100（いい評価をとると上がる。ベンチでも練習で少しずつ上がる）</div>
     <div class="label" style="margin-top:8px">🏋️ トレーニング（どこをのばす？）</div><div class="seg" id="car-focus"></div></div>`;
   body.innerHTML = h;
   segPicker(document.getElementById('car-focus'), FOCUS[CAR.pos].map(k => STAT_JP[k]), FOCUS[CAR.pos].indexOf(CAR.focus), i => { CAR.focus = FOCUS[CAR.pos][i]; saveCar(); openCareer(); });
   btns.innerHTML = '';
   const b = (label, cls, fn, w = '200px') => { const e = document.createElement('button'); e.className = 'btn ' + cls; e.style.width = w; e.innerHTML = label; e.onclick = () => { Sound.play('click'); fn(); }; btns.appendChild(e); };
-  b('▶ 試合をプレー', 'red', () => { Sound.init(); tryFullscreen(); newMatch({ mode: 'career', home: CAR.club, away: opp, diff: settings.diff, len: settings.len, role: 'off', lock: { data: careerData() } }); showScreen(null); });
-  b('⏩ 試合をとばす<small>結果だけ</small>', 'gray', () => carSim(opp));
-  b('📊 順位表', 'gray small', carTableView, '130px'); b('📜 記録', 'gray small', carHistory, '110px'); b('← ホーム', 'gray small', () => showScreen('sc-title'), '110px');
+  if (role.type === 'out') b('⏩ 試合を見守る<small>結果だけ・練習で少し成長</small>', 'red', () => carWatch(opp), '240px');
+  else {
+    b('▶ 試合をプレー', 'red', () => { Sound.init(); tryFullscreen(); newMatch({ mode: 'career', home: CAR.club, away: opp, diff: settings.diff, len: settings.len, role: 'off', lock: { data: careerData() }, carRole: role }); if (role.type === 'sub') carJump(role.min); showScreen(null); });
+    b('⏩ 試合をとばす<small>結果だけ</small>', 'gray', () => carSim(opp));
+  }
+  b('📊 順位表', 'gray small', carTableView, '130px'); b('📜 記録', 'gray small', carHistory, '110px'); b('👥 セーブデータ', 'gray small', openCarSlots, '140px'); b('← ホーム', 'gray small', () => showScreen('sc-title'), '110px');
   showScreen('sc-career');
 }
 function carSim(opp) { // 試合をとばす（結果だけ）
@@ -5646,7 +5730,7 @@ function carHistory() {
   document.getElementById('car-body').innerHTML = `<div style="text-align:center;margin-bottom:6px"><b>通算</b> ${t.apps}試合 ${t.goals}得点 ${t.assists}アシスト・平均評価 ${avg}<br>${CAR.awards.length ? '受賞：' + CAR.awards.join('・') : ''}</div>
     <table class="st" style="width:100%"><tr><th>季</th><th>年</th><th>クラブ</th><th>試</th><th>点</th><th>ア</th><th>評価</th><th>順位</th><th>受賞</th></tr>${rows || '<tr><td colspan="9">まだ記録はないよ</td></tr>'}</table>`;
   document.getElementById('car-btns').innerHTML = '<button class="btn gray small" id="car-back3">← もどる</button>';
-  document.getElementById('car-back3').onclick = () => { Sound.play('click'); if (CAR.retired) showScreen('sc-pro'); else openCareer(); };
+  document.getElementById('car-back3').onclick = () => { Sound.play('click'); if (CAR.retired) openCarSlots(); else openCareer(); };
   showScreen('sc-career');
 }
 function carRetire() { CAR.retired = true; saveCar(); carHistory(); document.getElementById('car-title').textContent = `🎉 ${CAR.name} 引退`; }
@@ -5667,13 +5751,13 @@ function clubPicker(el, list, sel, onPick, rnd) { // rnd：「おまかせ」ボ
   el.innerHTML = (rnd ? `<button class="btn small ${sel === 'random' ? 'gold' : 'gray'}" data-id="random" style="width:auto;padding:6px 10px">🎲 おまかせ</button>` : '') + list.map(t => `<button class="btn small ${t.id === sel ? 'gold' : 'gray'}" data-id="${t.id}" style="width:auto;padding:6px 10px">${teamChip(t.id)}</button>`).join('');
   el.querySelectorAll('button').forEach(b => b.onclick = () => { Sound.play('click'); onPick(b.dataset.id); clubPicker(el, list, b.dataset.id, onPick, rnd); });
 }
-document.getElementById('cn-back').onclick = () => { Sound.play('click'); showScreen('sc-pro'); };
+document.getElementById('cn-back').onclick = () => { Sound.play('click'); openCarSlots(); };
 document.getElementById('cn-go').onclick = () => {
   const name = document.getElementById('cn-name').value.trim(), num = cnPos === 'GK' ? 21 + ((Math.random() * 11) | 0) : 16 + ((Math.random() * 16) | 0);   // 背番号はクラブが決める（新人なので大きい番号）
   const err = document.getElementById('cn-err');
   if (!name) { err.textContent = '名前を入れてね'; return; }
   if (BAD_WORDS.some(w => name.toLowerCase().includes(w))) { err.textContent = 'その名前は使えないよ'; return; }
-  if (CAR && !CAR.retired && !confirm('今のキャリアは消えるよ。新しく作る？')) return;
+  if (CAR && !CAR.retired && !confirm('このわくのキャリアは消えるよ。新しく作る？')) return;
   const b = 58, v = () => b + rand(-2, 3);
   const st = { sp: v(), sh: v(), pa: v(), df: v(), gk: 40, ph: v() - 2 };
   const mod = { GK: { gk: 64, sp: -6, sh: -14, df: -6 }, FIXO: { df: 6, sh: -4 }, ALA: { sp: 5, pa: 2, df: -3 }, PIVO: { sh: 6, ph: 5, df: -6 } }[cnPos];
@@ -5682,7 +5766,7 @@ document.getElementById('cn-go').onclick = () => {
     tot: { apps: 0, goals: 0, assists: 0, rsum: 0 }, history: [], awards: [], retired: false, ht: cnPos === 'GK' ? Math.round(rand(180, 192)) : undefined };
   newSeason(); saveCar(); Sound.play('applause', 1); openCareer();
 };
-document.getElementById('pro-career').onclick = () => { Sound.init(); Sound.play('click'); openCareer(); };
+document.getElementById('pro-career').onclick = () => { Sound.init(); Sound.play('click'); openCarSlots(); };
 // ----- 1試合なりきり -----
 let pqTeam = null, pqKey = null, pqOpp = null;
 function openProQuick() {
