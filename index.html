@@ -97,16 +97,18 @@ h2{font-size:22px;font-weight:900;font-style:italic;letter-spacing:1px}
 .card.coach.sel{outline:3px solid #ffd400;outline-offset:2px}
 .card.coach{cursor:pointer;width:150px}
 .tcard.rnd .shirt{display:flex;align-items:center;justify-content:center;font-size:24px;background:#ffffff22}
-#pv{position:relative;width:100%;height:200px;border-radius:16px;overflow:hidden;margin:0 auto 8px;max-width:760px;background:radial-gradient(ellipse at 50% 120%,#3a6bd8 0,#14213f 60%,#0a0f1e 100%)}
+#pv{position:relative;width:100%;height:min(54vh,440px);min-height:220px;border-radius:16px;overflow:hidden;margin:0 auto 8px;max-width:760px;background:radial-gradient(ellipse at 50% 120%,#3a6bd8 0,#14213f 60%,#0a0f1e 100%)}
 #pv canvas{width:100%;height:100%;display:block}
-.pv-n{position:absolute;left:10px;bottom:8px;font-weight:900;font-size:13px;text-shadow:0 1px 3px #000;max-width:45%;text-align:left}
-.pv-n.r{left:auto;right:10px;text-align:right}
-.pv-n small{display:block;font-weight:700;opacity:.8;font-size:11px}
-.pv-q{position:absolute;left:18%;top:8px;font-size:26px;display:none;transform:translateX(-50%)}
-.pv-q.r{left:82%}
+.pv-arr{position:absolute;top:50%;transform:translate(-50%,-50%);width:44px;height:64px;border:none;border-radius:12px;background:#00000066;color:#fff;font-size:24px;font-weight:900;cursor:pointer;z-index:2}
+.pv-arr:active{background:#ffd40099;color:#111}
+.pv-kit{position:absolute;top:8px;border:none;border-radius:999px;padding:5px 12px;background:#00000077;color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer;z-index:2}
+.pv-teams{display:flex;justify-content:space-around;width:100%;max-width:760px;margin:0 auto 8px;gap:8px}
+.pv-team{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:16px;text-align:center}
+.pv-team .emb{width:52px;height:60px}
+body.pv-one .s1{display:none!important}
 .pv-vs{position:absolute;left:50%;top:10px;transform:translateX(-50%);font-weight:900;font-style:italic;font-size:22px;color:#ffd400;text-shadow:0 2px 4px #000}
 .kitseg{margin-left:8px;vertical-align:middle}.kitseg button{padding:4px 10px;font-size:12px}
-@media (max-height:500px){#pv{height:130px}.pv-q{font-size:20px}}
+@media (max-height:500px){#pv{height:62vh;min-height:180px}.pv-team .emb{width:34px;height:40px}.pv-team{font-size:13px;flex-direction:row;justify-content:center}.pv-arr{width:36px;height:52px}}
 .shirt{width:40px;height:36px;margin:0 auto 4px;clip-path:polygon(25% 0,40% 9%,60% 9%,75% 0,100% 20%,88% 42%,78% 36%,78% 100%,22% 100%,22% 36%,12% 42%,0 20%)}
 .tname{font-size:12px;font-weight:800;line-height:1.2}
 .stars{font-size:11px;color:#ffd400;letter-spacing:-1px}
@@ -349,11 +351,14 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 <!-- 試合の設定（CPU / リーグ） -->
 <div class="screen" id="sc-setup"><div class="wrap">
   <h2 id="setup-title">CPUと試合</h2>
-  <div id="pv"><canvas id="pv-cv"></canvas><div class="pv-n" id="pv-n0"></div><div class="pv-n r" id="pv-n1"></div><div class="pv-q" id="pv-q0">🎲</div><div class="pv-q r" id="pv-q1">🎲</div><div class="pv-vs" id="pv-vs">VS</div></div>
+  <div id="pv"><canvas id="pv-cv"></canvas>
+    <button class="pv-arr" data-s="0" data-d="-1" style="left:2%">◀︎</button><button class="pv-arr" data-s="0" data-d="1" style="left:40%">▶︎</button>
+    <button class="pv-arr s1" data-s="1" data-d="-1" style="left:52%">◀︎</button><button class="pv-arr s1" data-s="1" data-d="1" style="left:90%">▶︎</button>
+    <button class="pv-kit" id="pv-kit0" style="left:8px"></button><button class="pv-kit s1" id="pv-kit1" style="right:8px"></button>
+    <div class="pv-vs" id="pv-vs">VS</div></div>
+  <div class="pv-teams"><div class="pv-team" id="pv-t0"><div class="emb" id="pv-e0"></div><b id="pv-nm0"></b></div><div class="pv-team s1" id="pv-t1"><div class="emb" id="pv-e1"></div><b id="pv-nm1"></b></div></div>
   <div class="panel">
-    <div class="label">あなたのチーム <span class="seg kitseg" id="seg-kit0"></span></div>
-    <div class="teams" id="pick-me"></div>
-    <div id="opp-box"><div class="label">あいてのチーム <span class="seg kitseg" id="seg-kit1"></span></div><div class="teams" id="pick-opp"></div></div>
+    <div style="display:none"><div class="teams" id="pick-me"></div><div id="opp-box"><div class="teams" id="pick-opp"></div></div><span id="seg-kit0"></span><span id="seg-kit1"></span></div>
     <div class="row" style="margin-top:6px">
       <div><div class="label">強さ</div><div class="seg" id="seg-diff"></div></div>
       <div><div class="label">試合時間（前半・後半 それぞれ）</div><div class="seg" id="seg-len"></div></div>
@@ -2974,8 +2979,7 @@ function saveFX(g, big, text) {
   S.hitStop = big ? 0.2 : 0.1; S.shake = big ? 0.4 : 0.22;   // 一瞬止める・ゆらす
   fxBurst(ball.p, big ? 22 : 12, ['#ffffff', '#ffe066', '#9fe3ff']);
   g.saveFlash = 0.5; FPV.focus = ball.p.clone(); S.crowdJump = big ? 1.8 : 0.9; S.jumpFan = g.team.i;
-  const mine = g.team.human != null && g.team.human === localHuman();
-  if (big || mine) showMsg('🧤 SAVE!', text, 1.2); else showMsg('', text, 1.2);
+  if (text === 'PKストップ！') showMsg('🧤 SAVE!', text, 1.4); else showMsg('', '🧤 ' + text, 1.2);   // 文字はふつうの大きさ（PK だけ大きく）
 }
 function gkSaveCheck() { // キーパーのセーブ
   if (S.pkForced) { // PK：読み合いの結果どおりにする
@@ -4416,8 +4420,10 @@ function updateCamera(dt) {
     let ty = fp.saveFlash > 0 && FPV.focus ? Math.atan2(FPV.focus.z - fp.pos.z, FPV.focus.x - fp.pos.x) : ball.owner === fp ? Math.atan2(-fp.pos.z * 0.5, gx - fp.pos.x) : bd > 1.0 ? Math.atan2(bz, bx) : (FPV.yaw ?? Math.atan2(fp.fz, fp.fx));
     if (FPV.yaw == null) FPV.yaw = ty;
     let da = ty - FPV.yaw; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
-    const quick = fp.dive > 0 || fp.slide > 0 || fp.saveFlash > 0 || bd < 3;
-    FPV.yaw += da * (1 - Math.exp(-dt * (quick ? 12 : 4)));   // ふだんはゆっくり向きを変える。近いボール・ダイブ・セーブのときはすばやくボールを見る
+    const quick = fp.dive > 0 || fp.slide > 0 || fp.saveFlash > 0 || (bd < 3 && bd > 1.2);
+    if (bd <= 1.2 && ball.owner !== fp && !(fp.saveFlash > 0)) da = 0;   // 体のすぐそばのボールは追いかけない（向きがぐるぐる変わって、画面があばれるので）
+    const turn = da * (1 - Math.exp(-dt * (quick ? 8 : 4))), maxTurn = (quick ? 4.5 : 2.5) * dt;   // 1秒に回れるのは 約140〜260度まで
+    FPV.yaw += clamp(turn, -maxTurn, maxTurn);   // ふだんはゆっくり向きを変える。近いボール・ダイブ・セーブのときは少しすばやく
     const eye = (settings.model === 'simple' ? SIMPLE_SCALE : PLAYER_SCALE) * 1.62, cx = Math.cos(FPV.yaw), cz = Math.sin(FPV.yaw);
     let roll = 0;
     if (fp.role === 'GK' && fp.dive > 0) { const k = Math.sin(clamp(1 - fp.dive / 0.6, 0, 1) * Math.PI); roll = -fp.diveDir * Math.sign(Math.cos(FPV.yaw) || 1) * 0.28 * k; }   // ダイブ：とんだ方へ少しだけかたむく（見やすさ優先）
@@ -4440,8 +4446,10 @@ function updateCamera(dt) {
     if (bw > 0) { ballMesh.position.x += ox * bw; ballMesh.position.z += oz * bw; }
     // 近いボールは、ボールそのものを見る（止める手や足、ドリブルの足が見える）。セーブした場所も少しの間見る
     if (fp.saveFlash > 0 && FPV.focus) look.lerp(FPV.focus, 0.85);
-    else if (bd < 6) { const w = clamp((6 - bd) / 4, 0, 1) * (ball.owner === fp ? 0 : 0.6); look.lerp(V3(ball.p.x, Math.max(0, ball.p.y - 0.1), ball.p.z), w); }
-    if (!FPV.was) { camPos.copy(pos); camLook.copy(look); } sp = 40;
+    else if (bd < 6 && bd > 1.2) { const w = clamp((6 - bd) / 4, 0, 1) * (ball.owner === fp ? 0 : 0.5); look.lerp(V3(ball.p.x, Math.max(0, ball.p.y - 0.1), ball.p.z), w); }
+    const jumped = FPV.lp && Math.hypot(fp.pos.x - FPV.lp.x, fp.pos.z - FPV.lp.z) > 0.6;   // 置き直された（ゴールクリアランスなど）：画面をパッと切りかえる
+    FPV.lp = { x: fp.pos.x, z: fp.pos.z };
+    if (!FPV.was || jumped) { camPos.copy(pos); camLook.copy(look); if (jumped) FPV.yaw = ty; } sp = 40;
   } else { FPV.yaw = null; FPV.roll = 0; }
   FPV.was = FPV.on;
   const pc = S.pkCam;
@@ -5253,13 +5261,15 @@ function pvCaptain(def) { // キャプテン：チームのデータにあれば
   return (PV.cap[def.id] = c);
 }
 function pvSet(i, def, kit, rnd) {
-  const n = document.getElementById('pv-n' + i), q = document.getElementById('pv-q' + i);
+  document.getElementById('pv-nm' + i).textContent = rnd ? '🎲 おまかせ' : def ? def.name : '';
+  document.getElementById('pv-e' + i).innerHTML = emblemSVG(rnd ? null : def);
+  document.getElementById('pv-kit' + i).textContent = rnd ? '👕 ' + (settings['kit' + i] === 'away' ? 'アウェー' : 'ホーム') : '👕 ' + (kit.w === 'away' ? 'アウェー' : kit.w === 'third' ? 'サード' : 'ホーム') + (kit.forced ? '（色かぶり）' : '');
   const key = def ? def.id + '|' + kit.shirt + kit.shorts + kit.num + '|' + (REAL.ready && settings.model !== 'simple') + (rnd ? '|r' : '') : '';
   if (key === PV.key[i]) return;
   PV.key[i] = key;
   if (PV.m[i]) { PV.sc.remove(PV.m[i].outer); PV.m[i] = null; }
-  q.style.display = def && !rnd ? 'none' : 'block'; PV.ball[i].visible = false;
-  if (!def) { n.innerHTML = 'おまかせ<small>キックオフで決まる</small>'; return; }
+  PV.ball[i].visible = false;
+  if (!def) return;
   const c = pvCaptain(def), mk = key.replace('|r', '') + '|' + i;   // 一度作った選手は取っておいて、また使う
   PV.cache = PV.cache || {};
   if (PV.m[1 - i] === PV.cache[mk]) delete PV.cache[mk];
@@ -5268,8 +5278,22 @@ function pvSet(i, def, kit, rnd) {
   PV.sc.add(m.outer); PV.m[i] = m;
   m.outer.position.set(i ? 0.8 : -0.8, 0, 0); m.outer.rotation.y = i ? -0.3 : 0.3;
   if (m.real) realPlay(m, 'idle', { fade: 0 });
-  n.innerHTML = rnd ? `🎲 おまかせ<small>キックオフで決まる（いまは ${def.name}）</small>` : `${def.name}<small>キャプテン ${c.name} #${c.num}・${kit.w === 'away' ? 'アウェー' : kit.w === 'third' ? 'サード' : 'ホーム'}${kit.forced ? '・色かぶり' : ''}</small>`;
 }
+function emblemSVG(def) {
+  if (!def) return `<svg viewBox="0 0 52 60" width="100%" height="100%"><path d="M26 2 L49 10 V30 C49 45 38 54 26 58 C14 54 3 45 3 30 V10 Z" fill="#555" stroke="#fff" stroke-width="2.5"/><text x="26" y="38" text-anchor="middle" font-size="22" font-weight="900" fill="#fff">?</text></svg>`;
+  const k = teamKit(def, 'home'), tc = lum(k.shirt) > 0.55 ? '#111' : '#fff';
+  return `<svg viewBox="0 0 52 60" width="100%" height="100%"><path d="M26 2 L49 10 V30 C49 45 38 54 26 58 C14 54 3 45 3 30 V10 Z" fill="${k.shirt}" stroke="${k.shorts}" stroke-width="3"/><path d="M8 20 H44" stroke="${k.shorts}" stroke-width="4"/><text x="26" y="42" text-anchor="middle" font-size="15" font-weight="900" fill="${tc}" font-family="sans-serif">${def.short}</text></svg>`;
+}
+// ◀︎▶︎ でチームを切りかえる（おまかせ もふくむ）
+function pvStepTeam(side, d) {
+  const all = ['random', ...(TEAM_BY.my ? ['my'] : []), ...TEAMS.map(t => t.id)], k = side ? 'opp' : 'team', other = side ? settings.team : settings.opp, otherR = side ? settings.teamRnd : settings.oppRnd;
+  let i = all.indexOf(settings[k + 'Rnd'] ? 'random' : settings[k]);
+  for (let n = 0; n < all.length; n++) { i = (i + d + all.length) % all.length; if (all[i] === 'random' || otherR || all[i] !== other) break; }
+  if (all[i] === 'random') settings[k + 'Rnd'] = true; else { settings[k] = all[i]; settings[k + 'Rnd'] = false; }
+  saveSettings(); Sound.play('click'); pvUpdate();
+}
+document.querySelectorAll('.pv-arr').forEach(b => b.onclick = () => pvStepTeam(+b.dataset.s, +b.dataset.d));
+['pv-kit0', 'pv-kit1'].forEach((id, i) => document.getElementById(id).onclick = () => { settings['kit' + i] = settings['kit' + i] === 'away' ? 'home' : 'away'; saveSettings(); Sound.play('click'); pvUpdate(); });
 function pvRoll(ex) { // おまかせ のときにプレビューで見せるチーム（ルーレット）
   const all = (TEAM_BY.my ? ['my'] : []).concat(TEAMS.map(t => t.id)).filter(i => !ex.includes(i));
   PV.ri = ((PV.ri || 0) + 1) % all.length; return all[PV.ri];
@@ -5281,97 +5305,100 @@ function pvUpdate() {
   if (rB) b = PV.rB && PV.rB !== a ? PV.rB : (PV.rB = pvRoll([a]));
   const d0 = a && TEAM_BY[a], d1 = cpu && b ? TEAM_BY[b] : null;
   const kits = makeKits(d0 || d1 || TEAMS[0], d1 || TEAMS[1], settings.kit0 || 'home', settings.kit1 || 'home');
-  pvSet(0, d0, kits[0], rA); pvSet(1, cpu ? d1 : null, kits[1], rB);
-  if (!cpu) { document.getElementById('pv-q1').style.display = 'none'; document.getElementById('pv-n1').innerHTML = ''; }
+  pvSet(0, d0, kits[0], rA); if (cpu) pvSet(1, d1, kits[1], rB); else pvSet(1, null, kits[1], false);
+  document.body.classList.toggle('pv-one', !cpu);   // リーグを始めるときは自分のチームだけ
   document.getElementById('pv-vs').style.display = cpu ? '' : 'none';
 }
 // 腕組み・リフティングのポーズ（PVP の数字で角度を決める）
 const PVP = {
   cross: { L: [-0.008, 0.701, 1.662], R: [-0.117, -0.86, -1.707], LF: [0, 0.024, 1.551], RF: [0, 0.024, -1.583] },   // 手と ひじ の場所から計算した角度
 };
-// 待っている動き（1人ずつ）：リフティング → 足の裏でボールを止める → 腕を組む → いろんな方法でボールを上げる → リフティング …
-const PV_DUR = { juggle: 6, stop: 1.1, cross: 6, lift: 1.3 }, PV_NEXT = { juggle: 'stop', stop: 'cross', cross: 'lift', lift: 'juggle' };
-const PV_LIFTS = ['flick', 'roll', 'double'];   // つま先ですくう／足の裏で引いてから上げる／2回タッチ
-const PV_PER = 0.62, PV_TOP = 0.78;   // リフティング1回の時間・ボールのいちばん上
+// 待っている動き（1人ずつ）：リフティング → 足の裏でボールを止める → 腕を組む → ボールを上げる → リフティング …（FIFA の試合前みたいに）
+const PV_DUR = { juggle: 6, stop: 1.1, cross: 6, lift: 1.7 }, PV_NEXT = { juggle: 'stop', stop: 'cross', cross: 'lift', lift: 'juggle' };
+const PV_PER = 0.6, PV_TOP = 0.74, PV_HIT = 0.27;   // リフティング1回の時間・ボールのいちばん上・足に当たる高さ
 const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
-const pvQ = new THREE.Quaternion(), pvE = new THREE.Euler();
+const pvQ = new THREE.Quaternion(), pvE = new THREE.Euler(), pvV = new THREE.Vector3(), pvM = new THREE.Matrix4();
 function pvState(i) {
-  if (!PV.st) PV.st = [{ s: 'cross', t: 2 }, { s: 'juggle', t: 0, jt: 0 }];
+  if (!PV.st) PV.st = [{ s: 'cross', t: 2 }, { s: 'juggle', t: 0, jt: 0.3 }];
   return PV.st[i];
 }
 function pvStep(st, dt) {
   st.t += dt;
   if (st.t >= PV_DUR[st.s]) {
     st.s = PV_NEXT[st.s]; st.t = 0;
-    if (st.s === 'lift') st.lift = PV_LIFTS[(Math.random() * PV_LIFTS.length) | 0];
-    if (st.s === 'juggle') st.jt = PV_PER * 0.5;   // 上げたボールがいちばん上にあるところから続ける
-    if (st.s === 'stop') st.h0 = st.h || 0.5;
+    if (st.s === 'lift') st.lift = Math.random() < 0.7 ? 'roll' : 'scoop';   // 足の裏で引いてから上げる（多め）／つま先ですくう
+    if (st.s === 'juggle') st.jt = 0;   // 上げたボールが落ちてきたところで、1回目のタッチ
+    if (st.s === 'stop') { st.h0 = st.h || 0.5; st.f0 = st.f || 0.32; st.x0 = st.x ?? -0.12; }
   }
   if (st.s === 'juggle') st.jt += dt;
 }
-// 腕：w=1 で腕組み（アニメの動きと まぜる）
 function pvArms(m, w) {
   if (w <= 0) return;
   const P = PVP.cross;
   if (m.real) {
     const b = m.bones;
-    for (const [bn, e] of [['LeftArm', P.L], ['RightArm', P.R], ['LeftForeArm', P.LF], ['RightForeArm', P.RF]]) {
-      pvQ.setFromEuler(pvE.set(e[0], e[1], e[2])); b[bn].quaternion.slerp(pvQ, w);
-    }
+    for (const [bn, e] of [['LeftArm', P.L], ['RightArm', P.R], ['LeftForeArm', P.LF], ['RightForeArm', P.RF]]) { pvQ.setFromEuler(pvE.set(e[0], e[1], e[2])); b[bn].quaternion.slerp(pvQ, w); }
   } else {
     const A = m.arms;
     A[0].sh.rotation.set(-1.2 * w, 0, -0.5 * w); A[0].elbow.rotation.set(-1.5 * w, 0, 0); A[1].sh.rotation.set(-1.2 * w, 0, 0.5 * w); A[1].elbow.rotation.set(-1.5 * w, 0, 0);
   }
 }
-// 右足：hip＝もも（マイナスで前に上げる）、knee＝ひざ（プラスで曲げる）
-function pvLeg(m, hip, knee) {
-  if (m.real) { const b = m.bones; if (!b.RightUpLeg) return; b.RightUpLeg.rotation.x += hip; b.RightLeg.rotation.x += knee; }
-  else { const L = m.legs; L[1].hip.rotation.set(hip, 0, 0); L[1].knee.rotation.set(knee, 0, 0); L[0].hip.rotation.set(0, 0, 0); L[0].knee.rotation.set(0, 0, 0); }
+// 足：side 'R'＝右足、'L'＝左足。hip＝もも（マイナスで前に上げる）、knee＝ひざ（プラスで曲げる）
+function pvLeg(m, hip, knee, side = 'R') {
+  if (m.real) { const b = m.bones, u = b[side === 'R' ? 'RightUpLeg' : 'LeftUpLeg'], l = b[side === 'R' ? 'RightLeg' : 'LeftLeg']; if (!u) return; u.rotation.x += hip; l.rotation.x += knee; }
+  else { const L = m.legs[side === 'R' ? 1 : 0]; L.hip.rotation.set(hip, 0, 0); L.knee.rotation.set(knee, 0, 0); }
+}
+// 右足のつま先の場所（選手から見た 横・前・高さ）
+function pvToe(m) {
+  let o = null;
+  if (m.real) { if (!m.toe) m.toe = m.root.getObjectByName('mixamorigRightToeBase') || m.root.getObjectByName('mixamorigRightFoot'); o = m.toe; }
+  else o = m.legs[1].ankle;
+  if (!o) return null;
+  m.outer.updateMatrixWorld(true); o.getWorldPosition(pvV);
+  pvM.copy(m.outer.matrixWorld).invert(); pvV.applyMatrix4(pvM); return { x: pvV.x, f: pvV.z, y: pvV.y };
 }
 function pvPose(m, i, dt) {
   const st = pvState(i), ball = PV.ball[i], R = BALL_R;
   pvStep(st, dt);
-  if (!m.real) for (const a of m.arms) { a.sh.rotation.set(0, 0, a === m.arms[0] ? 0.25 : -0.25); a.elbow.rotation.set(-0.3, 0, 0); }
-  let h = R, f = 0.32, arms = 0, hip = 0, knee = 0;   // ボールの高さ・前へのきょり、腕組みの強さ、足の角度
+  if (!m.real) { for (const a of m.arms) { a.sh.rotation.set(0, 0, a === m.arms[0] ? 0.25 : -0.25); a.elbow.rotation.set(-0.3, 0, 0); } for (const L of m.legs) { L.hip.rotation.set(0, 0, 0); L.knee.rotation.set(0, 0, 0); } }
+  let h = R, f = 0.32, x = -0.12, arms = 0, roll = 0;
   const t = st.t;
-  if (st.s === 'juggle') { // リフティング：足は小さく上げる
-    const ph = (st.jt % PV_PER) / PV_PER, k = Math.max(0, Math.cos(ph * Math.PI * 2)) ** 2;
-    h = 0.27 + (PV_TOP - 0.27) * 4 * ph * (1 - ph); hip = -0.5 * k; knee = 0.45 * k;
-  } else if (st.s === 'stop') { // ボールが落ちてきたところを、足の裏で地面に止める → 足をもどす → 腕を組む
+  if (st.s === 'juggle') { // リフティング：右・右・左の順でける（足は小さく上げる）
+    const n = Math.floor(st.jt / PV_PER), ph = (st.jt % PV_PER) / PV_PER, k = Math.max(0, Math.cos(ph * Math.PI * 2)) ** 2;
+    const side = n % 3 === 2 ? 'L' : 'R', nextSide = (n + 1) % 3 === 2 ? 'L' : 'R', xs = s2 => s2 === 'L' ? 0.12 : -0.12;
+    const kk = ph < 0.5 ? k : 0, kn = ph >= 0.5 ? k : 0;   // 今の足でけったあと、次の足を上げる
+    pvLeg(m, -0.5 * kk, 0.45 * kk, side); if (kn) pvLeg(m, -0.5 * kn, 0.45 * kn, nextSide);
+    h = PV_HIT + (PV_TOP - PV_HIT) * 4 * ph * (1 - ph); x = xs(side) + (xs(nextSide) - xs(side)) * ease((ph - 0.2) / 0.6); roll = 0.15;
+  } else if (st.s === 'stop') { // 落ちてきたボールを、右足の裏で地面に止める → 足をもどす → 腕を組む
     const u = Math.min(1, t / 0.38);
-    h = st.h0 + (R - st.h0) * u * u;
-    const sole = ease(t / 0.3) * (1 - ease((t - 0.7) / 0.3));   // 足の裏をボールの上にのせて、また下ろす
-    hip = -0.42 * sole; knee = 0.32 * sole;
+    h = st.h0 + (R - st.h0) * u * u; x = st.x0 + (-0.12 - st.x0) * ease(t / 0.3);
+    const sole = ease(t / 0.3) * (1 - ease((t - 0.7) / 0.3));
+    pvLeg(m, -0.42 * sole, 0.32 * sole); roll = 0.05 * (1 - u);
     arms = ease((t - 0.55) / 0.5);
   } else if (st.s === 'cross') { arms = 1; }
-  else { // ボールを上げる（腕をほどいてから）
-    arms = 1 - ease(t / 0.35);
-    const T0 = 0.45;
-    if (st.lift === 'flick') { // つま先をボールの下に入れて、すくい上げる
-      const prep = ease((t - 0.3) / 0.15) * (1 - ease((t - T0) / 0.08)); f = 0.32;
-      if (t > T0) { const u = Math.min(1, (t - T0) / (PV_DUR.lift - T0)); h = R + (PV_TOP - R) * (1 - (1 - u) ** 2); }
-      const kick = Math.max(0, 1 - Math.abs(t - T0 - 0.05) / 0.12);
-      hip = -0.15 * prep - 0.55 * kick; knee = 0.2 * prep + 0.2 * kick;
-    } else if (st.lift === 'roll') { // 足の裏でボールを手前に引いて、上がってきたところをける
-      const on = ease((t - 0.25) / 0.15) * (1 - ease((t - 0.7) / 0.1)), back = ease((t - 0.4) / 0.3);
-      f = 0.32 - 0.18 * back; hip = -0.35 * on + 0.1 * back * on; knee = 0.3 * on;
-      const T1 = 0.78;
-      if (t > T1) { const u = Math.min(1, (t - T1) / (PV_DUR.lift - T1)); h = R + (PV_TOP - R) * (1 - (1 - u) ** 2); f = 0.14 + 0.18 * u; }
-      const kick = Math.max(0, 1 - Math.abs(t - T1 - 0.04) / 0.12); hip -= 0.5 * kick; knee += 0.25 * kick;
-    } else { // 2回タッチ：小さく上げてから、もう1回で高く
-      const T1 = 0.4, T2 = 0.8;
-      if (t > T1 && t <= T2) { const u = (t - T1) / (T2 - T1); h = R + 0.32 * 4 * u * (1 - u) + (0.25 - R) * u; }
-      else if (t > T2) { const u = Math.min(1, (t - T2) / (PV_DUR.lift - T2)); h = 0.25 + (PV_TOP - 0.25) * (1 - (1 - u) ** 2); }
-      const kick = Math.max(0, 1 - Math.abs(t - T1) / 0.1) * 0.6 + Math.max(0, 1 - Math.abs(t - T2) / 0.1);
-      hip = -0.45 * kick; knee = 0.35 * kick;
-    }
+  else if (st.lift === 'roll') { // 腕をほどく → 足の裏をボールにのせる → 手前に転がす → つま先を下に入れて、ふわっと上げる → ひざの高さで1回目のタッチ
+    arms = 1 - ease(t / 0.4);
+    const on = ease((t - 0.3) / 0.3), back = ease((t - 0.62) / 0.33), dip = ease((t - 0.95) / 0.1), T1 = 1.05;
+    let hip = -0.38 * on + 0.42 * back * on - 0.12 * dip, knee = 0.42 * on + 0.15 * back - 0.4 * dip;
+    const flick = Math.max(0, 1 - Math.abs(t - T1 - 0.05) / 0.12); hip -= 0.45 * flick; knee += 0.15 * flick;
+    pvLeg(m, hip, knee);
+    const toe = pvToe(m);
+    if (t < 0.62) f = 0.32;
+    else if (t < T1) { f = 0.32 - 0.2 * back; if (toe) x = -0.12 + (toe.x + 0.12) * 0.5; roll = -0.12 * back; }   // 足の裏で手前に転がす（ボールが回る）
+    else { const u = Math.min(1, (t - T1) / (PV_DUR.lift - T1)); f = 0.12 + 0.2 * u; h = R + (PV_HIT - R) * u + 4 * 0.36 * u * (1 - u); roll = 0.2; }   // ふわっと上がって、落ちてくる
+  } else { // つま先をボールの下に入れて、すくい上げる
+    arms = 1 - ease(t / 0.4);
+    const prep = ease((t - 0.35) / 0.3), T1 = 0.85;
+    const kick = Math.max(0, 1 - Math.abs(t - T1 - 0.05) / 0.12);
+    pvLeg(m, -0.12 * prep * (1 - kick) - 0.5 * kick, 0.15 * prep + 0.15 * kick);
+    if (t > T1) { const u = Math.min(1, (t - T1) / (PV_DUR.lift - T1)); h = R + (PV_HIT - R) * u + 4 * 0.45 * u * (1 - u); f = 0.32 - 0.04 * u; roll = 0.2; }
   }
-  st.h = h;
-  pvArms(m, arms); pvLeg(m, hip, knee);
-  const o = m.outer, side = -0.12, c = Math.cos(o.rotation.y), s = Math.sin(o.rotation.y);
+  st.h = h; st.f = f; st.x = x;
+  pvArms(m, arms);
+  const o = m.outer, c = Math.cos(o.rotation.y), s = Math.sin(o.rotation.y);
   ball.visible = true;
-  ball.position.set(o.position.x + side * c + f * s, h, o.position.z - side * s + f * c);
-  if (st.s !== 'cross') ball.rotation.x += st.s === 'juggle' ? 0.15 : 0.05;
+  ball.position.set(o.position.x + x * c + f * s, h, o.position.z - x * s + f * c);
+  ball.rotation.x += roll;
 }
 function pvFrame(dt) {
   if (!PV.on || !PV.r) return;
@@ -5384,7 +5411,7 @@ function pvFrame(dt) {
   const one = !PV.m[1] && setupMode !== 'cpu';
   const dc = PV.dbgCam;   // テスト用：カメラの場所
   if (dc) { PV.cam.position.set(dc[0], dc[1], dc[2]); PV.cam.lookAt(dc[3], dc[4], dc[5]); }
-  else { PV.cam.position.set(one ? -0.8 : 0, 1.2, 3.9); PV.cam.lookAt(one ? -0.8 : 0, 0.92, 0); }
+  else { PV.cam.position.set(one ? -0.8 : 0, 1.05, one ? 2.6 : 3.4); PV.cam.lookAt(one ? -0.8 : 0, 0.82, 0); }
   PV.r.render(PV.sc, PV.cam);
 }
 function frame(now) {
