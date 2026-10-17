@@ -220,6 +220,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 #pkui.on{display:flex}
 #fkpick{position:fixed;inset:0;z-index:31;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(6,10,26,.72);padding:12px;text-align:center}
 #fkpick.on{display:flex}
+#fk-sw{position:fixed;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 58px);transform:translateX(-50%);z-index:32;display:none;border:none;border-radius:999px;padding:8px 16px;background:#ffd400;color:#111;font:inherit;font-weight:900;font-size:14px;box-shadow:0 2px 8px #0008;cursor:pointer}
 #fkaim{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;justify-content:space-between;padding:12px 10px calc(10px + env(safe-area-inset-bottom));touch-action:none;cursor:crosshair}
 #fkaim.on{display:flex}
 #fkaim .pk-head,#fkaim .pk-foot{background:rgba(6,10,26,.72);border-radius:14px;padding:6px 14px;cursor:default}
@@ -275,6 +276,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 
 <!-- フリーキック：キッカーをえらぶ・軌道の線 -->
 <div id="fkpick"></div>
+<button id="fk-sw">🔄 キッカー切り替え</button>
 <div id="fkaim">
   <div class="pk-head"><span id="fka-title"></span><span id="fka-fk" style="color:#ffd400"></span></div>
   <div class="pk-foot">
@@ -547,8 +549,8 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="coinbar">🪙 <span class="coinv">0</span></div>
   <div class="sub">選手を育てるアイテムを、ゲームの中のコインで買えるよ。アイテムは マイチーム →選手をタップ で使う。試合のあとにももらえる</div>
   <div class="label" style="margin-top:6px">👔 監督と契約（ふつうの監督・毎週月曜に入れかわる）</div>
-  <div class="sub">監督は、システム（4-0・3-1 など）・マークのしかた・攻め方・戦術ごとに うまさ（★）がちがう。作戦が得意なものと合うほど、チームの能力が上がる（合わないと下がることも）</div>
-  <div id="coach-list"></div>
+  <div class="sub">監督は、システム（4-0・3-1 など）・マークのしかた・攻め方・戦術ごとに 適性（0〜100）がちがう。作戦が得意なものと合うほど、チームの能力が上がる（合わないと下がることも）</div>
+  <div id="coach-list" style="width:100%;max-width:100%;min-width:0"></div>
   <div class="label" style="margin-top:12px">👔 監督パック（強い監督1人＋SRの選手1人＋Rの選手2人）</div>
   <div id="pack-list"></div>
   <div class="label" style="margin-top:12px">🎒 アイテム</div>
@@ -880,61 +882,70 @@ function myFix() {
 const usedUids = () => [...MY.gk, ...MY.sets.flat()];
 const cardBy = uid => MY.cards.find(c => c.uid === uid);
 function cardToData(c, key) { const st = { sp: cardStat(c, 'sp'), sh: cardStat(c, 'sh'), pa: cardStat(c, 'pa'), df: cardStat(c, 'df'), gk: cardStat(c, 'gk'), ph: cardStat(c, 'ph') };   // 監督の分は cardStat に入っている
-  return { key, name: c.name.split(' ')[0], num: c.num, pos: c.pos, apt: c.apt, skills: c.skills || [], style: c.style, ht: c.ht, arm: c.arm, leg: c.leg, st, card: c.uid }; }
+  return { key, name: c.name.split(' ')[0], full: c.name, num: c.num, pos: c.pos, apt: c.apt, skills: c.skills || [], style: c.style, ht: c.ht, arm: c.arm, leg: c.leg, st, card: c.uid }; }
 // ----- 監督（パックで手に入る。マイチームで1人えらぶ） -----
 const COACH_TYPES = {
   atk:   { n: '攻撃サッカー', e: '⚔️', st: 'sh', d: 'チームみんなの シュート' },
   pass:  { n: 'パスワーク',   e: '🎯', st: 'pa', d: 'チームみんなの パス' },
   def:   { n: '堅い守り',     e: '🛡', st: 'df', d: 'チームみんなの 守備' },
   speed: { n: 'カウンター',   e: '⚡', st: 'sp', d: 'チームみんなの 速さ' },
-  phys:  { n: 'フィジカル',   e: '💪', st: 'ph', d: 'チームみんなの 体' },
-  gk:    { n: 'ゴレイロ育成', e: '🧤', st: 'gk', d: 'キーパーの キーパー' },
-};
+  phys:  { n: 'ハイプレス',   e: '💪', st: 'ph', d: 'チームみんなの 体' },
+};   // 監督のタイプは「基本戦術」。前の「ゴレイロ育成」はなくした（持っていた監督は「堅い守り」になる）
 // 監督の強さ：相性がいちばんいいときに、みんなの能力が上がる数（N 2・R 3・SR 4・SSR 5・LEGEND 6）と、得意な能力にさらに足す数
 const COACH_MAX = [0, 2, 3, 4, 5, 6], COACH_SPEC = [0, 1, 1, 2, 2, 3];
-// 監督のうまさ（★1〜5）：システム（フォーメーション）・マーク・攻め方・戦術ごと
+// 監督の適性（0〜100）：システム（フォーメーション）・マーク・攻め方・戦術ごと
 const CG_PLAY = [['block', 'ブロック'], ['blind', 'ブライン'], ['diag', 'ダイア'], ['onetwo', 'ワンツー']];
 const CG_FORM = [['121', '1-2-1'], ['22', '2-2'], ['31', '3-1'], ['40', '4-0']], CG_DEF = [['man', 'マンツー'], ['zone', 'ゾーン']], CG_ATK = [['bal', 'バランス'], ['pivo', 'ピヴォ当て'], ['side', 'サイド']];
+// 適性は 0〜100 の数字（細かく）。平均：N 49・R 58・SR 67・SSR 76・LEGEND 85 くらい
 function coachGrades(rar) {
-  const mean = 2.2 + rar * 0.45, g = () => clamp(Math.round(mean + rand(-1.3, 1.3)), 1, 5), G = { form: {}, def: {}, atk: {}, play: {} };
+  const mean = 40 + rar * 9, g = () => clamp(Math.round(mean + rand(-22, 22)), 15, 99), G = { v: 2, form: {}, def: {}, atk: {}, play: {} };
   for (const [k] of CG_FORM) G.form[k] = g();
   for (const [k] of CG_DEF) G.def[k] = g();
   for (const [k] of CG_ATK) G.atk[k] = g();
   for (const [k] of PLAYS) G.play[k] = g();
-  const fav = CG_FORM[(Math.random() * 4) | 0][0]; G.form[fav] = Math.max(G.form[fav], Math.min(5, 3 + Math.ceil(rar / 2)));   // 得意なシステムが1つはある
+  const fav = CG_FORM[(Math.random() * 4) | 0][0]; G.form[fav] = Math.max(G.form[fav], Math.min(99, Math.round(70 + rar * 5 + rand(0, 6))));   // 得意なシステムが1つはある
   return G;
+}
+// 前の版の監督（★1〜5）を 0〜100 の数字に直す
+function cgFix(c) {
+  if (c && !COACH_TYPES[c.type]) c.type = 'def';   // なくなったタイプ（ゴレイロ育成）→ 堅い守り
+  if (!c || !c.g || c.g.v === 2) return c;
+  for (const grp of ['form', 'def', 'atk', 'play']) for (const k in c.g[grp]) c.g[grp][k] = clamp(Math.round(c.g[grp][k] * 20 - 10 + rand(-6, 6)), 15, 99);
+  c.g.v = 2; return c;
 }
 function newCoach(rar, type) {
   const ks = Object.keys(COACH_TYPES); type = type || ks[(Math.random() * ks.length) | 0];
   return { cid: MY.next++, name: NAMES[(Math.random() * NAMES.length) | 0] + ' ' + GIVEN[(Math.random() * GIVEN.length) | 0], type, rar, age: 38 + ((Math.random() * 25) | 0), g: coachGrades(rar) };
 }
-function myCoach() { // 前の版で作った監督には、うまさ（★）をあとからつける
-  for (const c of (MY && MY.coaches) || []) if (!c.g) { c.g = coachGrades(c.rar); saveMy(); }
+function myCoach() { // 前の版で作った監督には、適性をあとからつける（★のものは数字に直す）
+  for (const c of (MY && MY.coaches) || []) { if (!c.g) { c.g = coachGrades(c.rar); saveMy(); } else if (c.g.v !== 2 || !COACH_TYPES[c.type]) { cgFix(c); saveMy(); } }
   return MY && MY.coach != null ? (MY.coaches || []).find(c => c.cid === MY.coach) || null : null;
 }
 // 今の作戦と、監督のうまさの相性（0〜1）。システム40%・マーク20%・攻め方15%・使う戦術25%
 // みんなの能力：相性100%で最大より少し上、30%くらいで0、それより下はマイナス
 function coachFitOf(co) {
-  const t = settings.tactic || {}, P = myPlays(), q = g => ((g || 3) - 1) / 4;
+  cgFix(co); const t = settings.tactic || {}, P = myPlays(), q = g => (g ?? 50) / 100;
   let pw = 0, ps = 0; for (const [k] of PLAYS) { const lv = P[k] || 0; pw += lv; ps += lv * q(co.g.play[k]); }
   const fit = 0.4 * q(co.g.form[t.form || '121']) + 0.2 * q(co.g.def[t.def || 'man']) + 0.15 * q(co.g.atk[t.atk || 'bal']) + 0.25 * (pw ? ps / pw : 0.5);
-  return { fit, all: Math.round(COACH_MAX[co.rar] * (fit * 1.5 - 0.4)), spec: COACH_TYPES[co.type].st, specV: COACH_SPEC[co.rar] };
+  return { fit, all: Math.round(COACH_MAX[co.rar] * (fit * 1.5 - 0.4) * 10) / 10, spec: COACH_TYPES[co.type].st, specV: COACH_SPEC[co.rar] };
 }
 function coachFit() { const co = myCoach(); return co && co.g ? coachFitOf(co) : null; }
 function coachHTML(c, extra = '') {
-  const T = COACH_TYPES[c.type], G = c.g, row = (list, o) => list.map(([k, n]) => `<span style="white-space:nowrap">${n}<b style="color:#ffd84d">★${o[k]}</b></span>`).join(' ');
+  cgFix(c); const T = COACH_TYPES[c.type], G = c.g, col = v => v >= 80 ? '#ffd84d' : v >= 60 ? '#7dffb0' : v >= 40 ? '#ffffff' : '#ff9a8a';
+  const row = (list, o) => list.map(([k, n]) => `<span style="white-space:nowrap">${n} <b style="color:${col(o[k])}">${o[k]}</b></span>`).join(' ');
   return `<div class="card coach r${c.rar} ${extra}" data-cid="${c.cid}"><div class="c-top"><span>${RARITY[c.rar].n}</span><span>監督</span></div><div class="c-ovr" style="font-size:26px">${T.e}</div><div class="c-name">${c.name}</div><div class="c-num">${c.age}さい・${T.n}</div>`
     + `<div class="c-st" style="font-size:10px;line-height:1.45;text-align:left">${row(CG_FORM, G.form)}<br>${row(CG_DEF, G.def)}<br>${row(CG_ATK, G.atk)}<br>${row(CG_PLAY, G.play)}</div>`
     + `<div class="c-sty">最大 みんな+${COACH_MAX[c.rar]}・${STAT_JP2[T.st]}+${COACH_SPEC[c.rar]}</div></div>`;
 }
 const STAT_JP2 = { sp: '速さ', sh: 'シュート', pa: 'パス', df: '守備', gk: 'キーパー', ph: '体' };
 function fitLabel(m) { if (!m) return ''; const p = Math.round(m.fit * 100), mk = p >= 80 ? '◎' : p >= 60 ? '○' : p >= 40 ? '△' : '×';
-  return `監督と作戦の相性 ${mk} ${p}%（みんなの能力 ${m.all >= 0 ? '+' : ''}${m.all}・${STAT_JP2[m.spec]} さらに +${m.specV}）`; }
+  return `監督と作戦の相性 ${mk} ${p}%（みんなの能力 ${m.all >= 0 ? '+' : ''}${m.all.toFixed(1)}・${STAT_JP2[m.spec]} さらに +${m.specV}）`; }
 // ----- ふつうの監督と契約（ショップ。毎週月曜に入れかわる） -----
-const COACH_SHOP = [{ rar: 1, price: 500 }, { rar: 1, price: 500 }, { rar: 2, price: 800 }];
+const COACH_SHOP = [...Array(20)].map(() => ({ rar: 1, price: 500 })).concat([...Array(10)].map(() => ({ rar: 2, price: 800 })));   // ふつうの監督：N 20人・R 10人
 function myCoachShop() {
   myInit(); const wk = packWeek();
-  if (!MY.coachShop || MY.coachShop.wk !== wk) { MY.coachShop = { wk, list: COACH_SHOP.map(p => ({ coach: newCoach(p.rar), price: p.price, bought: false })) }; saveMy(); }
+  // 週が変わったとき・人数が変わったときに作り直す
+  if (!MY.coachShop || MY.coachShop.wk !== wk || MY.coachShop.list.length !== COACH_SHOP.length) { MY.coachShop = { wk, list: COACH_SHOP.map(p => ({ coach: newCoach(p.rar), price: p.price, bought: false })) }; saveMy(); }
   return MY.coachShop.list;
 }
 function buyCoach(i) {
@@ -1443,7 +1454,7 @@ function makeRoster(def) {
   const fresh = d => ({ ...d, st: { ...d.st }, energy: 100, yel: 0, sent: false });
   if (def.roster && def.roster.sets) return { gk: def.roster.gk.map(fresh), sets: def.roster.sets.map(st => st.map(fresh)) };
   const ti = Math.max(0, TEAMS.findIndex(t => t.id === def.id)), r = () => rand(-4, 4);
-  const gen = (pos, j, num, key, w) => { const tr = genTraits(pos, w ? 1 : 2); const d = fresh({ key, name: NAMES[(ti * 14 + j) % NAMES.length], num, pos, apt: tr.apt, skills: tr.skills, st: {
+  const gen = (pos, j, num, key, w) => { const tr = genTraits(pos, w ? 1 : 2); const d = fresh({ key, name: NAMES[(ti * 14 + j) % NAMES.length], full: NAMES[(ti * 14 + j) % NAMES.length] + ' ' + GIVEN[(ti * 7 + j * 3) % GIVEN.length], num, pos, apt: tr.apt, skills: tr.skills, st: {
     sp: def.sp + r() + (pos === 'ALA' ? 3 : 0) - w * 2, sh: def.sh + r() + (pos === 'PIVO' ? 5 : pos === 'FIXO' ? -4 : 0) - w * 2,
     pa: def.pa + r() - w, df: def.df + r() + (pos === 'FIXO' ? 6 : pos === 'PIVO' ? -5 : 0) - w, gk: pos === 'GK' ? def.gk - w * 3 : 40,
     ph: (def.df + def.sh) / 2 + PH_MOD[pos] + rand(-6, 6) } }); d.style = pickStyle(pos, d.st); if (pos === 'GK') Object.assign(d, gkBody()); return d; };
@@ -1472,7 +1483,7 @@ function lockInsert(t, lock) {
 function bindData(p, d) { // コートのわく p に 選手 d を入れる（交代）
   if (p.data) p.data.energy = p.energy;
   d.played = true;   // この試合に出た
-  p.data = d; p.name = d.name; p.num = d.num; p.st = effStats(d, p.role); p.energy = d.energy; p.skills = d.skills || []; p.card = d.card || null;
+  p.data = d; p.name = d.name; p.full = d.full || d.name; p.num = d.num; p.st = effStats(d, p.role); p.energy = d.energy; p.skills = d.skills || []; p.card = d.card || null;
   p.style = STYLE_FAM[posKey(p.role)].includes(d.style) ? d.style : pickStyle(posKey(p.role), { ...d.st, ph: d.st.ph ?? 70 }); // ちがうポジションに入れたら、そこでの動き方
   p.stamina = Math.max(p.stamina ?? 100, 70);
   if (p.mesh) scene.remove(p.mesh.outer);
@@ -1984,7 +1995,7 @@ function realCelebrate(p, m) {
   }
 }
 function clearMatch() {
-  closePkUI(); camera.fov = 36; camera.updateProjectionMatrix(); document.getElementById('fkaim').classList.remove('on'); document.getElementById('fkpick').classList.remove('on'); fkLine.visible = false; document.body.classList.remove('goalcut');
+  closePkUI(); camera.fov = 36; camera.updateProjectionMatrix(); document.getElementById('fkaim').classList.remove('on'); document.getElementById('fkpick').classList.remove('on'); document.getElementById('fk-sw').style.display = 'none'; fkLine.visible = false; document.body.classList.remove('goalcut');
   for (const p of players) { if (!p.mesh) continue; scene.remove(p.mesh.outer); if (p.mesh.mixer) p.mesh.mixer.stopAllAction(); }
   players = []; teams = []; S = null;
   markers.forEach(m => m.g.visible = false);
@@ -2097,10 +2108,11 @@ function startSetPiece(type, t, pos, opt = {}) {
       const n = dist < 10 ? 3 : 2, cx = pos.x + wx * 5, cz = pos.z + wz * 5;
       const defs = t.opp.players.filter(p => p.role !== 'GK' && !p.off && !(t.opp.human != null && p === t.opp.controlled)).sort((a, b) => Math.hypot(a.pos.x - cx, a.pos.z - cz) - Math.hypot(b.pos.x - cx, b.pos.z - cz)).slice(0, n);
       S.sp.wall = defs.map((p, i) => ({ p, x: cx + (-wz) * (i - (n - 1) / 2) * 0.62, z: cz + wx * (i - (n - 1) / 2) * 0.62 }));
+      const best = t.players.filter(p => p.role !== 'GK' && !p.off).sort((a, b) => fkVal(b) - fkVal(a))[0];   // キッカー：FK がいちばんうまい選手（なりきりのときも、監督＝CPU が決める）
+      if (best) { taker = best; S.sp.taker = best; }
     }
   }
   if (opt.indirect && t.human != null && t.human === localHuman()) setTimeout(() => localMsg('', '間接フリーキック：直接ゴールに入れても点にならないよ', 2.4), 1500);
-  if (type === 'fk' && t.human != null && t.human === localHuman() && NET.role === 'off' && S.cfg.mode !== 'tutorial') fkPickOpen(t, S.sp);   // キッカーをえらぶ
   if (t.human != null) setControlled(t, taker);
 }
 
@@ -2224,7 +2236,7 @@ function scoreGoal(s) {
   S.celType = ['slide', 'plane', 'jump', 'point'][(Math.random() * 4) | 0]; S.goalAt = performance.now() / 1000;
   if (!own) setTimeout(() => { if (S && S.phase === 'goal') showMsg('', { slide: '🕺 ニースライディング！', plane: '✈️ 飛行機パフォーマンス！', jump: '🙌 ジャンプ！', point: '☝️ 天を指さす！' }[S.celType], 1.6); }, 1300);
   sfx('cheer'); S.crowdJump = 3.5; S.jumpFan = t.i;
-  showMsg('GOAL!!', t.def.name + '　' + name + (own ? '' : ' #' + k.num), 3);
+  showMsg('GOAL!!', t.def.name + '　' + (own ? name : (k.full || k.name)) + (own ? '' : ' #' + k.num), 3);   // 決めた人はフルネーム
   if (navigator.vibrate && t.human === localHuman()) try { navigator.vibrate([60, 40, 120]); } catch (e) {}
   updateScoreboard(true);
 }
@@ -2763,16 +2775,26 @@ function fkPickOpen(t, sp) {
   const ben = benchData(t).filter(d => d.pos !== 'GK' && !d.sent).map(d => ({ p: null, d, bench: true }));
   const list = onF.concat(ben).map(o => ({ ...o, fk: fkVal(o.p || o.d), cv: cvVal(o.p || o.d) })).sort((a, b) => b.fk - a.fk);
   const el = document.getElementById('fkpick');
-  el.innerHTML = `<div class="pk-head">⚽ フリーキック！ キッカーをえらぼう（ベンチの選手は、けったらすぐ交代）</div><div class="cards" style="justify-content:center">${list.map((o, i) => `<button class="btn ${o.p && o.p === t.lockP ? 'gold' : o.bench ? '' : 'gray'}" data-i="${i}" style="width:auto;padding:8px 12px">${o.d.name} #${o.d.num}${o.bench ? '（ベンチ）' : ''}<small>FK ${o.fk}・カーブ ${o.cv}${o.p && o.p === t.lockP ? '・自分' : ''}</small></button>`).join('')}</div>`;
+  el.innerHTML = `<div class="pk-head">🔄 キッカー切り替え（ベンチの選手は、けったらすぐ交代）</div><div class="cards" style="justify-content:center">${list.map((o, i) => `<button class="btn ${o.p && o.p === t.lockP ? 'gold' : o.bench ? '' : 'gray'}" data-i="${i}" style="width:auto;padding:8px 12px">${o.d.name} #${o.d.num}${o.bench ? '（ベンチ）' : ''}<small>FK ${o.fk}・カーブ ${o.cv}${o.p && o.p === t.lockP ? '・自分' : ''}</small></button>`).join('')}</div>`;
   el.classList.add('on'); fkPickList = list;
   el.querySelectorAll('button').forEach(b => b.onclick = () => { Sound.play('click'); fkPickDone(fkPickList[+b.dataset.i]); });
-  sp.choosing = true; sp.chooseT = 12;
+  sp.choosing = true; sp.chooseT = 12; sp.pickedBy = true;
 }
 let fkPickList = [];
+function fkSwitchOK() { // キッカー切り替えボタンを出すとき：自分のチームのフリーキック（なりきり中は出さない）
+  const sp = S && S.sp;
+  return !!(sp && S.phase === 'setpiece' && sp.type === 'fk' && sp.team.human != null && sp.team.human === localHuman() && !sp.team.lockP && NET.role === 'off' && S.cfg.mode !== 'tutorial' && !sp.choosing && !(S.fk && S.fk.done));
+}
+document.getElementById('fk-sw').onclick = () => {
+  if (!fkSwitchOK()) return; Sound.play('click');
+  const sp = S.sp;
+  if (S.fk) { S.fk = null; S.pkCam = null; fkLine.visible = false; aimMark.visible = false; document.getElementById('fkaim').classList.remove('on'); sp.fkCheck = false; }   // ねらいの途中：いったんやめる
+  fkPickOpen(sp.team, sp);
+};
 function fkPickDone(o) {
   const sp = S && S.sp; document.getElementById('fkpick').classList.remove('on');
   if (!sp || sp.type !== 'fk') return;
-  if (!o) o = fkPickList.slice().sort((a, b) => b.fk - a.fk)[0] || { p: sp.taker };   // 時間切れ：いちばん FK がうまい人
+  if (!o) o = { p: sp.taker };   // 時間切れ：今のキッカーのまま
   sp.choosing = false;
   let p = o.p;
   if (o.bench) { // ベンチの選手：同じポジションの選手（いなければ FK がいちばん低い選手）と入れかわって、けったらもどる
@@ -2780,7 +2802,7 @@ function fkPickDone(o) {
     p = cand.find(q => posKey(q.role) === o.d.pos) || cand.sort((a, b) => fkVal(a) - fkVal(b))[0];
     if (p) { const orig = p.data; bindData(p, o.d); p.subBack = orig; if (t.human === localHuman()) localMsg('', `🔄 ${o.d.name} がフリーキックのために入った`, 1.4); }
   }
-  if (p && p !== sp.taker) { sp.taker.locked = false; sp.taker = p; p.locked = false; }
+  if (p && p !== sp.taker) { sp.taker.locked = false; sp.taker = p; p.locked = false; sp.fkCheck = false; }   // 新しいキッカーがボールの所へ行ってから、ねらいをやり直す
   if (sp.team.human != null) setControlled(sp.team, sp.taker);
 }
 // 軌道の計算：ボールの動き（重力・カーブ・空気）と同じ式で、ゴールのライン（x＝ゴール）まで進める
@@ -4497,6 +4519,7 @@ const tbPass = document.getElementById('tb-pass'), tbShoot = document.getElement
 let lastAttackUI = null, lastGkUI = null;
 function updateHUD(dt) {
   updateScoreboard();
+  { const b = document.getElementById('fk-sw'), on = fkSwitchOK(); if ((b.style.display === 'block') !== on) b.style.display = on ? 'block' : 'none'; }
   document.getElementById('clock').textContent = fmtClock();
   document.getElementById('half').textContent = S.half === 1 ? '前半' : '後半';
   if (S.cfg.mode === 'tutorial') { document.getElementById('clock').textContent = 'れんしゅう'; document.getElementById('half').textContent = ''; }
@@ -4913,7 +4936,7 @@ function openShop() {
   const el = document.getElementById('shop-list');
   el.innerHTML = Object.keys(ITEMS).map(k => `<div class="panel" style="text-align:center;min-width:150px"><div style="font-size:30px">${ITEMS[k].e}</div><b>${ITEMS[k].n}</b><div class="sub">${ITEMS[k].d}</div><div class="sub">持っている：${MY.items[k] || 0}</div><button class="btn gold small" data-k="${k}" style="width:auto">🪙${ITEM_PRICE[k]} で買う</button></div>`).join('');
   const cl = document.getElementById('coach-list');
-  cl.innerHTML = `<div class="cards" style="justify-content:center">${myCoachShop().map((it, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px">${coachHTML(it.coach)}${it.bought ? '<div class="sub" style="color:#3ddc84">✅ 契約した</div>' : `<button class="btn gold small" data-cs="${i}" style="width:auto">🪙${it.price}</button>`}</div>`).join('')}</div>`;
+  cl.innerHTML = `<div class="sub">← 横にスクロールして見てね（${COACH_SHOP.length}人）→</div><div class="cards" style="flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding-bottom:6px;width:100%;max-width:100%;-webkit-overflow-scrolling:touch">${myCoachShop().map((it, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px">${coachHTML(it.coach)}${it.bought ? '<div class="sub" style="color:#3ddc84">✅ 契約した</div>' : `<button class="btn gold small" data-cs="${i}" style="width:auto">🪙${it.price}</button>`}</div>`).join('')}</div>`;
   cl.querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { Sound.init(); buyCoach(+b.dataset.cs); });
   const pl = document.getElementById('pack-list');
   pl.innerHTML = myPacks().map((pk, i) => `<div class="panel" style="text-align:center;margin-top:10px;border:2px solid ${['#7fb2ff', '#ffd84d', '#ff7ad9'][i]}">
@@ -5142,8 +5165,8 @@ function openTactics(from) {
   tacFrom = from;
   const T = settings.tactic;
   const co = myCoach(), gk = { form: 'form', def: 'def', atk: 'atk' };
-  const fitShow = () => { const m = coachFit(); document.getElementById('tc-coach').innerHTML = co && co.g ? `👔 監督 ${co.name}：${fitLabel(m)}<br><small>★は監督のうまさ。試合が始まるときの作戦で決まる</small>` : '<small>監督がいると、作戦との相性でチームの能力が変わる（🛒 ショップ）</small>'; refreshMy(); };
-  const seg = (id, list, cur, key, did) => { const lab = list.map(x => x[1] + (co && co.g && gk[key] ? ' ' + '★'.repeat(co.g[gk[key]][x[0]] || 3) : ''));
+  const fitShow = () => { const m = coachFit(); document.getElementById('tc-coach').innerHTML = co && co.g ? `👔 監督 ${co.name}：${fitLabel(m)}<br><small>数字は監督の適性（0〜100）。試合が始まるときの作戦で決まる</small>` : '<small>監督がいると、作戦との相性でチームの能力が変わる（🛒 ショップ）</small>'; refreshMy(); };
+  const seg = (id, list, cur, key, did) => { const lab = list.map(x => x[1] + (co && co.g && gk[key] ? ' ' + (cgFix(co).g[gk[key]][x[0]] ?? 50) : ''));   // 監督の適性（0〜100）
     segPicker(document.getElementById(id), lab, list.findIndex(x => x[0] === cur), i => { T[key] = list[i][0]; saveSettings(); applyTactics(); document.getElementById(did).textContent = list[i][2]; fitShow(); }); document.getElementById(did).textContent = (list.find(x => x[0] === cur) || list[0])[2]; };
   fitShow();
   seg('tc-form', TAC_FORM, T.form, 'form', 'tc-form-d'); seg('tc-line', TAC_LINE, T.line, 'line', 'tc-line-d'); seg('tc-def', TAC_DEF, T.def || 'man', 'def', 'tc-def-d'); seg('tc-atk', TAC_ATK, T.atk, 'atk', 'tc-atk-d');
