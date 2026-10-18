@@ -139,6 +139,7 @@ h2{font-size:22px;font-weight:900;font-style:italic;letter-spacing:1px}
 .tcard.sel{border-color:#ffd400;background:#ffd40024}
 .card.coach.sel{outline:3px solid #ffd400;outline-offset:2px}
 .card.coach{cursor:pointer;width:150px}
+.card.coach.sup{color:#fff;border-color:#9ff6ff;background:linear-gradient(120deg,#1a0b3d,#5b21b6 25%,#00c2ff 45%,#7c3aed 62%,#0ea5e9 80%,#1a0b3d);background-size:260% 260%;box-shadow:0 0 18px #7c3aedcc,0 0 4px #fff inset}   /* サポーター限定の監督 */
 .tcard.rnd .shirt{display:flex;align-items:center;justify-content:center;font-size:24px;background:#ffffff22}
 #pv{position:relative;width:100%;height:min(calc(54*var(--vh)),440px);min-height:220px;border-radius:16px;overflow:hidden;margin:0 auto 8px;max-width:760px;background:radial-gradient(ellipse at 50% 120%,#3a6bd8 0,#14213f 60%,#0a0f1e 100%)}
 #pv canvas{width:100%;height:100%;display:block}
@@ -915,12 +916,28 @@ function trySupporterCode(text) {
   grantSupporter();
   return true;
 }
-function grantSupporter() {   // サポーター特典をわたす（色はずっと、レジェンドとおまけコインは1回だけ）
+// サポーター限定の監督（SSR・パスワーク。どの作戦にもわりと合う）
+const SUPPORTER_COACH = { name: 'ルミナ ヴェガ', type: 'pass', rar: 4, age: 45,
+  g: { v: 2, form: { 121: 84, 22: 78, 31: 81, 40: 74 }, def: { man: 79, zone: 83 }, atk: { bal: 84, pivo: 75, side: 79 }, play: 77 } };
+function supporterCoach() {
+  const S = SUPPORTER_COACH, play = {}; for (const [k] of PLAYS) play[k] = S.g.play;
+  return { cid: MY.next++, name: S.name, type: S.type, rar: S.rar, age: S.age, sup: true, g: { ...S.g, form: { ...S.g.form }, def: { ...S.g.def }, atk: { ...S.g.atk }, play } };
+}
+// サポーターの選手と監督が手もとにいなければ入れる（あとから増えた特典も、サポーターならもらえる）
+function supporterItems() {
+  if (!isSupporter()) return false;
+  myInit(); let got = false;
+  for (const id of SUPPORTER_LEGENDS) if (!MY.cards.some(c => c.legend === id)) { MY.cards.push(legendCard(id)); got = true; }
+  MY.coaches = MY.coaches || [];
+  if (!MY.coaches.some(c => c.sup)) { const co = supporterCoach(); MY.coaches.push(co); if (MY.coach == null) MY.coach = co.cid; got = true; }
+  if (got) saveMy();
+  return got;
+}
+function grantSupporter() {   // サポーター特典をわたす（色・選手・監督。おまけコインは1回だけ）
   store.set('futsal-supporter', true);
+  supporterItems();
   if (!store.get('futsal-supporter-bonus', false)) {
     store.set('futsal-supporter-bonus', true);
-    myInit();
-    for (const id of SUPPORTER_LEGENDS) if (!MY.cards.some(c => c.legend === id)) MY.cards.push(legendCard(id));
     addCoins(SUPPORTER_BONUS);   // ここでセーブもされる
   }
 }
@@ -944,7 +961,7 @@ async function tryCoinCode(text) {
       const first = !store.get('futsal-supporter-bonus', false);
       grantSupporter();
       if (!first) addCoins(info.c);   // この端末で2つ目のパックなら、コインだけもらえる
-      return { ok: true, msg: first ? `🎉 サポーター特典：限定の色・限定レジェンド2人（ノヴァ ステラ・ゼニス アトラス）・${SUPPORTER_BONUS}コイン！ ありがとう！` : `🎉 サポーター特典：${info.c}コインもらった！ ありがとう！` };
+      return { ok: true, msg: first ? `🎉 サポーター特典：限定の色・限定レジェンド2人（ノヴァ ステラ・ゼニス アトラス）・限定の監督（ルミナ ヴェガ）・${SUPPORTER_BONUS}コイン！ ありがとう！` : `🎉 サポーター特典：${info.c}コインもらった！ ありがとう！` };
     }
     addCoins(info.c);
     return { ok: true, msg: `🪙 ${info.c}コインもらった！ ありがとう！` };
@@ -1085,7 +1102,7 @@ function coachFit() { const co = myCoach(); return co && co.g ? coachFitOf(co) :
 function coachHTML(c, extra = '') {
   cgFix(c); const T = COACH_TYPES[c.type], G = c.g, col = v => v >= 80 ? '#ffd84d' : v >= 60 ? '#7dffb0' : v >= 40 ? '#ffffff' : '#ff9a8a';
   const row = (list, o) => list.map(([k, n]) => `<span style="white-space:nowrap">${n} <b style="color:${col(o[k])}">${o[k]}</b></span>`).join(' ');
-  return `<div class="card coach r${c.rar} ${extra}" data-cid="${c.cid}"><div class="c-top"><span>${RARITY[c.rar].n}</span><span>監督</span></div><div class="c-ovr" style="font-size:26px">${T.e}</div><div class="c-name">${c.name}</div><div class="c-num">${c.age}さい・${T.n}</div>`
+  return `<div class="card coach r${c.rar} ${c.sup ? 'sup' : ''} ${extra}" data-cid="${c.cid}"><div class="c-top"><span>${c.sup ? 'SUPPORTER' : RARITY[c.rar].n}</span><span>監督</span></div><div class="c-ovr" style="font-size:26px">${T.e}</div><div class="c-name">${c.name}</div><div class="c-num">${c.age}さい・${T.n}</div>`
     + `<div class="c-st" style="font-size:10px;line-height:1.45;text-align:left">${row(CG_FORM, G.form)}<br>${row(CG_DEF, G.def)}<br>${row(CG_ATK, G.atk)}<br>${row(CG_PLAY, G.play)}</div>`
     + `<div class="c-sty">最大 みんな+${COACH_MAX[c.rar]}・${STAT_JP2[T.st]}+${COACH_SPEC[c.rar]}</div></div>`;
 }
@@ -5782,7 +5799,7 @@ document.getElementById('g10').onclick = () => { Sound.init(); pull(10); };
 const SLOT_JP = ['GK', 'フィクソ', 'アラ左', 'アラ右', 'ピヴォ'];
 const BAD_WORDS = ['死', '殺', 'ころす', 'しね', 'バカ', 'ばか', 'アホ', 'あほ', 'うんこ', 'ちんこ', 'まんこ', 'fuck', 'shit', 'sex', 'http', 'www'];
 function openMyTeam() {
-  myInit(); myFix(); refreshMy();
+  myInit(); myFix(); supporterItems(); refreshMy();   // サポーターなら、あとから増えた特典（監督など）もここで入る
   const d = TEAM_BY.my;
   document.getElementById('my-name').value = MY.name;
   document.getElementById('my-ovr').textContent = d ? '総合 ' + Math.round(teamPower(d)) : '';
@@ -5793,7 +5810,7 @@ function openMyTeam() {
     msgEl.textContent = isSupporter() ? '✨ サポーター限定の色が使えるよ（ありがとう！）' : '';
     document.getElementById('sup-go').onclick = () => {
       const v = inp.value;
-      if (trySupporterCode(v)) { Sound.play('cheer'); inp.value = ''; openMyTeam(); document.getElementById('sup-msg').textContent = `🎉 サポーター特典：限定の色・限定レジェンド2人（ノヴァ ステラ・ゼニス アトラス）・${SUPPORTER_BONUS}コイン！（レジェンドとコインは1回だけ）`; return; }
+      if (trySupporterCode(v)) { Sound.play('cheer'); inp.value = ''; openMyTeam(); document.getElementById('sup-msg').textContent = `🎉 サポーター特典：限定の色・限定レジェンド2人・限定の監督・${SUPPORTER_BONUS}コイン！（コインは1回だけ）`; return; }
       msgEl.textContent = 'たしかめています…';
       tryCoinCode(v).then(res => {
         if (res.ok) { Sound.play('cheer'); inp.value = ''; openMyTeam(); document.getElementById('sup-msg').textContent = res.msg; }
