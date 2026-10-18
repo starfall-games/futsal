@@ -954,6 +954,32 @@ function grantSupporter() {   // サポーター特典をわたす（色・選�
     addCoins(SUPPORTER_BONUS);   // ここでセーブもされる
   }
 }
+// サポーター特典の取り消し（ページの URL の最後に ?undo-supporter をつけて開くと、確認してから消す）
+// 消すもの：限定レジェンド2人・限定の監督・限定の色・おまけの1,500コイン（この端末のセーブだけ。コードの「使った」の印はデータベース側で消す）
+function undoSupporter() {
+  myInit();
+  const legUids = MY.cards.filter(c => SUPPORTER_LEGENDS.includes(c.legend)).map(c => c.uid);
+  const used = new Set(usedUids());
+  const spare = gk => MY.cards.filter(c => !legUids.includes(c.uid) && !used.has(c.uid) && (c.pos === 'GK') === gk).sort((a, b) => ovr(b) - ovr(a))[0];
+  const swap = (u, gk) => { if (!legUids.includes(u)) return u; const c = spare(gk); if (c) { used.add(c.uid); return c.uid; } return null; };   // 使っていた所には、控えのいちばん強い選手を入れる（いなければ myFix が N の選手を入れる）
+  MY.gk = MY.gk.map(u => swap(u, true));
+  MY.sets = MY.sets.map(st => st.map(u => swap(u, false)));
+  MY.cards = MY.cards.filter(c => !legUids.includes(c.uid));
+  const sup = (MY.coaches || []).filter(c => c.sup).map(c => c.cid);
+  MY.coaches = (MY.coaches || []).filter(c => !c.sup);
+  if (sup.includes(MY.coach)) MY.coach = null;
+  if (store.get('futsal-supporter-bonus', false)) MY.coins = Math.max(0, MY.coins - SUPPORTER_BONUS);
+  if (SUPPORTER_COLORS.includes(MY.main)) MY.main = '#ff7a00';   // 限定の色を使っていたら、ふつうの色にもどす
+  if (SUPPORTER_COLORS.includes(MY.sub)) MY.sub = '#1a1a1a';
+  store.set('futsal-supporter', false); store.set('futsal-supporter-bonus', false);
+  myFix(); saveMy(); refreshMy();
+}
+if (/[?&]undo-supporter\b/.test(location.search)) setTimeout(() => {
+  history.replaceState(null, '', location.pathname + location.hash);   // URL から消す（もう一度読みこんでも出ないように）
+  if (!isSupporter() && !store.get('futsal-supporter-bonus', false)) { alert('この端末にはサポーター特典がないよ'); return; }
+  if (!confirm('サポーター特典（限定レジェンド2人・限定の監督・限定の色・1,500コイン）を、この端末から消す？')) return;
+  undoSupporter(); alert('サポーター特典を消したよ。コードをまた入れると、もう一度もらえる（コードが使える状態のとき）');
+}, 1200);
 // ===== itch.io で買う（サポーターパック・コインパック） =====
 // お金の手続きは itch.io がやる。買うと itch.io のダウンロードページにコードが出るので、それを「🎁 コード」に入れる
 const STORE_URL = 'https://nixoroot.itch.io/';
