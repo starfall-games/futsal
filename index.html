@@ -677,7 +677,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
     <div class="row"><input id="my-name" class="namein" maxlength="10"><button class="btn small" id="my-name-ok">名前を決める</button></div>
     <div class="row" style="margin:6px 0"><span class="label">ユニフォーム</span><span class="swatches" id="sw-main"></span><span class="label">パンツ</span><span class="swatches" id="sw-sub"></span></div>
     <div class="row" style="margin:6px 0"><span class="label">キーパー</span><span class="swatches" id="sw-gk"></span></div>
-    <div class="row" style="margin:6px 0;flex-wrap:wrap;gap:6px"><span class="label">🎁 コード（サポーター・コイン）</span><input id="sup-code" maxlength="24" placeholder="FS-XXXX-XXXX" style="width:150px;padding:6px 8px;border-radius:8px;border:none;font:inherit"><button class="btn small" id="sup-go" style="width:auto">入れる</button><span class="sub" id="sup-msg"></span></div>
+    <div class="row" style="margin:6px 0;flex-wrap:wrap;gap:6px"><span class="label">🎁 コード（サポーター・コイン）</span><input id="sup-code" maxlength="24" placeholder="FS-XXXX-XXXX" style="width:150px;padding:6px 8px;border-radius:8px;border:none;font:inherit"><button class="btn small" id="sup-go" style="width:auto">入れる</button><span class="sub" id="sup-msg"></span><button class="btn gray small" id="sup-undo" style="width:auto;display:none;font-size:11px;padding:4px 8px">特典を取り消す</button></div>
     <details class="store-box" id="store-my-wrap"><summary>💎 コードを手に入れる（サポーターパック・コイン）</summary><div id="store-my"></div></details>
     <div class="label">キーパー（左が先発）</div>
     <div class="cards" id="my-gk"></div>
@@ -5899,6 +5899,13 @@ function openMyTeam() {
   // サポーターコード
   { const msgEl = document.getElementById('sup-msg'), inp = document.getElementById('sup-code');
     msgEl.textContent = isSupporter() ? '✨ サポーター限定の色が使えるよ（ありがとう！）' : '';
+    const undoBtn = document.getElementById('sup-undo');   // サポーター特典を この端末から消す（コードを入れ直したいとき）
+    undoBtn.style.display = isSupporter() || store.get('futsal-supporter-bonus', false) ? '' : 'none';
+    undoBtn.onclick = () => {
+      if (!confirm('サポーター特典（限定レジェンド2人・限定の監督・限定の色・1,500コイン）を、この端末から消す？')) return;
+      undoSupporter(); Sound.play('click'); openMyTeam();
+      document.getElementById('sup-msg').textContent = 'サポーター特典を消したよ。コードをまた入れると、もう一度もらえる（コードが使える状態のとき）';
+    };
     document.getElementById('sup-go').onclick = () => {
       const v = inp.value;
       if (trySupporterCode(v)) { Sound.play('cheer'); inp.value = ''; openMyTeam(); document.getElementById('sup-msg').textContent = `🎉 サポーター特典：限定の色・限定レジェンド2人・限定の監督・${SUPPORTER_BONUS}コイン！（コインは1回だけ）`; return; }
