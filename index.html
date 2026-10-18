@@ -274,6 +274,8 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
 .pkz.kick{background:#ff3b3066;border:3px solid #ff3b30}
 .pk-msg{min-height:26px;font-weight:900;font-size:18px;text-align:center}
 #pk-ok:disabled{opacity:.4}
+body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
+body.forceLand #pv{height:min(54vw,440px)}
 #rotate{position:fixed;inset:0;z-index:50;background:#0a0f1ef2;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:20px}
 #rotate.on{display:flex}
 #rotate .ph{font-size:64px;animation:rot 1.6s ease-in-out infinite}
@@ -347,6 +349,7 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="sub">5人制フットサルの 3D サッカーゲーム</div>
   <div class="coinbar">🪙 <span class="coinv">0</span></div>
   <div class="row" style="margin:2px 0 6px"><button class="btn small" id="inst-btn" style="width:auto;display:none">📲 ホーム画面に追加</button><button class="btn small gray" id="land-btn" style="width:auto">🔒 横画面で固定</button></div>
+  <div class="panel" id="land-note" style="display:none;max-width:420px;text-align:left;font-size:14px"></div>
   <div class="panel" id="inst-help" style="display:none;max-width:420px;text-align:left;font-size:14px"></div>
   <!-- ホームのメニュー：えだわかれ（ツリー） -->
   <div class="menu2" id="menu-top">
@@ -3191,8 +3194,8 @@ function fkShoot(p, F) {
   const ui = document.getElementById('fkaim'); let last = null;
   const move = (dx, dy) => { const F = S && S.fk; if (!F || !F.aim) return; const s = F.team.dir;
     F.aim.z = clamp(F.aim.z + s * dx * 0.012, -GOAL_W - 0.6, GOAL_W + 0.6); F.aim.y = clamp(F.aim.y - dy * 0.01, 0.15, GOAL_H + 0.7); fkDraw(); };
-  ui.addEventListener('pointerdown', e => { if (e.target.closest('button,input,label')) return; last = [e.clientX, e.clientY]; ui.setPointerCapture(e.pointerId); });
-  ui.addEventListener('pointermove', e => { if (!last) return; move(e.clientX - last[0], e.clientY - last[1]); last = [e.clientX, e.clientY]; });
+  ui.addEventListener('pointerdown', e => { if (e.target.closest('button,input,label')) return; const q = PT(e); last = [q.x, q.y]; ui.setPointerCapture(e.pointerId); });
+  ui.addEventListener('pointermove', e => { if (!last) return; const q = PT(e); move(q.x - last[0], q.y - last[1]); last = [q.x, q.y]; });
   ui.addEventListener('pointerup', () => last = null); ui.addEventListener('pointercancel', () => last = null);
   document.getElementById('fka-curve').oninput = e => { if (S && S.fk && S.fk.aim) { S.fk.aim.curve = e.target.value / 100; fkDraw(); } };
   document.getElementById('fka-go').onclick = () => { Sound.play('click'); fkKick(); };
@@ -4250,14 +4253,14 @@ const touch = { jx: 0, jy: 0, id: null, ox: 0, oy: 0, dash: false, dash2: false,
 const joyzone = document.getElementById('joyzone'), joybase = document.getElementById('joybase'), joyknob = document.getElementById('joyknob');
 joyzone.addEventListener('touchstart', e => {
   e.preventDefault(); if (touch.id !== null) return;
-  const t = e.changedTouches[0]; touch.id = t.identifier; touch.ox = t.clientX; touch.oy = t.clientY;
-  joybase.style.display = 'block'; joybase.style.left = t.clientX + 'px'; joybase.style.top = (t.clientY - joyzone.getBoundingClientRect().top) + 'px';
+  const t = e.changedTouches[0], q = PT(t); touch.id = t.identifier; touch.ox = q.x; touch.oy = q.y;
+  joybase.style.display = 'block'; joybase.style.left = q.x + 'px'; joybase.style.top = (FORCE ? q.y - joyzone.offsetTop : t.clientY - joyzone.getBoundingClientRect().top) + 'px';
   document.getElementById('joyhint').style.display = 'none';
 }, { passive: false });
 joyzone.addEventListener('touchmove', e => {
   e.preventDefault();
   for (const t of e.changedTouches) if (t.identifier === touch.id) {
-    let dx = t.clientX - touch.ox, dy = t.clientY - touch.oy; const l = Math.hypot(dx, dy), R = 55;
+    const q = PT(t); let dx = q.x - touch.ox, dy = q.y - touch.oy; const l = Math.hypot(dx, dy), R = 55;
     if (l > R) { dx = dx / l * R; dy = dy / l * R; }
     touch.jx = dx / R; touch.jy = -dy / R;
     joyknob.style.transform = `translate(${dx}px,${dy}px)`;
@@ -4268,11 +4271,11 @@ joyzone.addEventListener('touchend', joyEnd); joyzone.addEventListener('touchcan
 // ボタン：押す・はなす・上下にスライド（onSwipe に 'up' / 'down' / '' がくる）
 function bindTouchBtn(id, onDown, onUp, onSwipe) {
   const el = document.getElementById(id); let y0 = 0, x0 = 0, tid = null;
-  el.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; tid = t.identifier; y0 = t.clientY; x0 = t.clientX; el.classList.add('down'); el.classList.remove('up', 'dn'); onDown(); }, { passive: false });
+  el.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0], q = PT(t); tid = t.identifier; y0 = q.y; x0 = q.x; el.classList.add('down'); el.classList.remove('up', 'dn'); onDown(); }, { passive: false });
   el.addEventListener('touchmove', e => {
     e.preventDefault(); if (!onSwipe) return;
     for (const t of e.changedTouches) if (t.identifier === tid) {
-      const dy = t.clientY - y0, dx = t.clientX - x0;
+      const q = PT(t), dy = q.y - y0, dx = q.x - x0;
       const v = Math.abs(dx) > Math.abs(dy) + 6 ? (dx < -26 ? 'left' : dx > 26 ? 'right' : '') : (dy < -22 ? 'up' : dy > 22 ? 'down' : '');
       el.classList.toggle('up', v === 'up'); el.classList.toggle('dn', v === 'down'); onSwipe(v);
     }
@@ -4696,7 +4699,7 @@ function fpHead(m, hide) {
   else { if (m.head) m.head.visible = !hide; if (m.neck) m.neck.visible = !hide; }
 }
 function updateCamera(dt) {
-  const aspect = innerWidth / innerHeight;
+  const aspect = VW() / VH();
   let k = aspect < 1.1 ? 1.75 : aspect < 1.5 ? 1.2 : aspect > 1.95 ? 1.0 : 1.05; // 縦長の画面ほどカメラをひく
   let fx = clamp(ball.p.x, -12.5, 12.5), fz = ball.p.z * 0.3;
   const lp = teams[0] && teams[0].lockP; if (lp && !lp.off) { fx = clamp(ball.p.x * 0.6 + lp.pos.x * 0.4, -12.5, 12.5); fz = (ball.p.z * 0.6 + lp.pos.z * 0.4) * 0.3; }   // なりきり：自分の選手とボールの間
@@ -4787,7 +4790,7 @@ function updateCamera(dt) {
 const pkV = V3();
 function pkLayout() { // コースのボタンを、3D のゴールにぴったり重ねる
   const pc = S.pkCam; if (!pc) return;
-  const gx = pc.s * HALF_L, toScr = (y, z) => { pkV.set(gx, y, z).project(camera); return [(pkV.x + 1) / 2 * innerWidth, (1 - pkV.y) / 2 * innerHeight]; };
+  const gx = pc.s * HALF_L, toScr = (y, z) => { pkV.set(gx, y, z).project(camera); return [(pkV.x + 1) / 2 * VW(), (1 - pkV.y) / 2 * VHeight]; };
   const a = toScr(GOAL_H, -pc.s * GOAL_W), b = toScr(0, pc.s * GOAL_W);   // 左上と右下（キッカーから見て）
   const el = document.querySelector('.pk-goal'), L = Math.min(a[0], b[0]), T = Math.min(a[1], b[1]);
   Object.assign(el.style, { left: L + 'px', top: T + 'px', width: Math.abs(b[0] - a[0]) + 'px', height: Math.abs(b[1] - a[1]) + 'px' });
@@ -5002,15 +5005,26 @@ function tryFullscreen() { // Android などは全画面にする（iPhone は�
 }
 // ----- 横画面で固定 -----
 async function lockLandscape(quiet) {
+  settings.lockLand = true; saveSettings();
+  let native = false;
   try {
     const el = document.documentElement;
     if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen();
-    if (screen.orientation && screen.orientation.lock) { await screen.orientation.lock('landscape'); settings.lockLand = true; saveSettings(); if (!quiet) localMsg('', '🔒 横画面で固定したよ（全画面をやめると元にもどる）', 2.2); return true; }
+    if (screen.orientation && screen.orientation.lock) { await screen.orientation.lock('landscape'); native = true; }
   } catch (e) {}
-  if (!quiet) localMsg('', IS_IOS ? '📱 iPhone は画面の回転ロックをオフにして、横向きで遊んでね（ホーム画面に追加すると全画面になる）' : 'このブラウザでは固定できなかったよ。横向きにして遊んでね', 3.2);
-  return false;
+  resize(); landLabel();
+  if (!quiet) landNote(native ? '🔒 横画面で固定したよ（Android）' : '🔒 横画面で固定したよ。スマホの<b>画面の回転ロックをオン</b>にして、スマホを横にして遊んでね（たて向きのままでも、ゲームの画面が横向きになる）');
+  return native;
 }
-document.getElementById('land-btn').onclick = () => { Sound.init(); Sound.play('click'); lockLandscape(false); };
+function unlockLandscape() {
+  settings.lockLand = false; saveSettings();
+  try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+  resize(); landLabel(); landNote('🔓 横画面の固定をやめたよ');
+}
+function landLabel() { document.getElementById('land-btn').textContent = settings.lockLand ? '🔒 横画面で固定：オン' : '🔓 横画面で固定：オフ'; }
+function landNote(html) { const n = document.getElementById('land-note'); n.innerHTML = html; n.style.display = ''; clearTimeout(landNote.t); landNote.t = setTimeout(() => n.style.display = 'none', 6000); }
+document.getElementById('land-btn').onclick = () => { Sound.init(); Sound.play('click'); if (settings.lockLand) unlockLandscape(); else lockLandscape(false); };
+landLabel();
 // ----- ホーム画面に追加（ショートカット）。ふつうのブラウザで遊んでいる人だけにボタンを出す -----
 const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IS_APP = (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches)) || navigator.standalone === true;
@@ -5555,13 +5569,23 @@ addEventListener('pointerdown', () => Sound.init(), { once: true });
 // ----- スマホを縦にしているとき -----
 let rotSkip = false;
 document.getElementById('rot-skip').onclick = () => { rotSkip = true; checkRotate(); };
-function checkRotate() { document.getElementById('rotate').classList.toggle('on', IS_TOUCH && !rotSkip && MODE === 'match' && innerHeight > innerWidth); }
+function checkRotate() { document.getElementById('rotate').classList.toggle('on', IS_TOUCH && !rotSkip && !FORCE && MODE === 'match' && innerHeight > innerWidth); }
+// 横画面で固定：スマホがたて向きのときは、ゲームの画面を90度回して横向きに見せる（回転ロックをオンにして、スマホを横にして遊ぶ）
+var FORCE = false;   // var：読みこみの最初のほうで使われても大丈夫なように
+const VW = () => FORCE ? innerHeight : innerWidth, VH = () => FORCE ? innerWidth : innerHeight;
+const PT = t => FORCE ? { x: t.clientY, y: innerWidth - t.clientX } : { x: t.clientX, y: t.clientY };   // 指の場所（回した画面の中の場所）
+function applyForce() {
+  FORCE = !!(settings.lockLand && IS_TOUCH && innerHeight > innerWidth);
+  const b = document.body; b.classList.toggle('forceLand', FORCE);
+  if (FORCE) { b.style.width = innerHeight + 'px'; b.style.height = innerWidth + 'px'; b.style.transform = `translate(${innerWidth}px,0) rotate(90deg)`; }
+  else { b.style.width = b.style.height = b.style.transform = ''; }
+}
 
 // =====================================================================
 //  スタート
 // =====================================================================
 if (IS_TOUCH) document.body.classList.add('touch');
-function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); checkRotate(); }
+function resize() { applyForce(); renderer.setSize(VW(), VH()); camera.aspect = VW() / VH(); camera.updateProjectionMatrix(); checkRotate(); }
 addEventListener('resize', resize);
 addEventListener('orientationchange', () => setTimeout(resize, 200));
 document.addEventListener('visibilitychange', () => { if (document.hidden && MODE === 'match' && NET.role === 'off' && !PAUSED && S && !S.over) togglePause(); });
