@@ -2,16 +2,42 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<script>
+// ===== 引っ越しの受け取り =====
+// 古いアドレス（starfall-games.github.io）から「#move=データ」をつけて来たら、
+// セーブデータをこのブラウザに入れる。こっちにもうあるデータは上書きしない。
+// （ゲームがセーブデータを読む前に動くように、いちばん最初に置いている）
+(function () {
+  var m = location.hash.match(/^#move=([A-Za-z0-9_-]+)$/);
+  if (!m) return;
+  try {
+    var b = m[1].replace(/-/g, "+").replace(/_/g, "/");
+    var bin = atob(b), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var data = JSON.parse(new TextDecoder().decode(bytes));
+    for (var k in data) {
+      if (k.indexOf("__") === 0) continue;               // 引っ越し用の印は入れない
+      if (localStorage.getItem(k) === null) localStorage.setItem(k, data[k]);
+    }
+    localStorage.setItem("nixo-moved", String(Date.now()));
+    if (data.__noPhoto) localStorage.setItem("nixo-move-nophoto", "1");
+  } catch (e) {}
+  history.replaceState(null, "", location.pathname + location.search);   // URL から「#move=…」を消す
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0f1e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>FUTSAL STRIKE｜無料で遊べる3Dフットサルゲーム（CPU・オンライン対戦）</title>
 <meta name="description" content="スマホやパソコンで無料で遊べる3Dフットサルゲーム。CPU戦・リーグ戦・友だちとのオンライン対戦、マイチームとガチャ、レジェンド選手、PKの読み合いなど。">
-<link rel="canonical" href="https://starfall-games.github.io/futsal/">
+<link rel="canonical" href="https://nixoroot.com/futsal/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="FUTSAL STRIKE｜無料で遊べる3Dフットサルゲーム">
 <meta property="og:description" content="スマホやパソコンで無料で遊べる3Dフットサルゲーム。CPU戦・リーグ戦・友だちとのオンライン対戦、マイチームとガチャ、レジェンド選手、PKの読み合いなど。">
-<meta property="og:url" content="https://starfall-games.github.io/futsal/">
+<meta property="og:url" content="https://nixoroot.com/futsal/">
 <meta property="og:site_name" content="STARFALL GAMES">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -320,6 +346,8 @@ input.namein{font-size:16px;padding:7px 10px;border-radius:10px;border:none;widt
   <div class="logo">FUTSAL<br><span>STRIKE</span> ⚽</div>
   <div class="sub">5人制フットサルの 3D サッカーゲーム</div>
   <div class="coinbar">🪙 <span class="coinv">0</span></div>
+  <div class="row" style="margin:2px 0 6px"><button class="btn small" id="inst-btn" style="width:auto;display:none">📲 ホーム画面に追加</button><button class="btn small gray" id="land-btn" style="width:auto">🔒 横画面で固定</button></div>
+  <div class="panel" id="inst-help" style="display:none;max-width:420px;text-align:left;font-size:14px"></div>
   <!-- ホームのメニュー：えだわかれ（ツリー） -->
   <div class="menu2" id="menu-top">
     <button class="btn" data-sub="match">⚽ 試合<small>CPU・リーグ・オンライン・なりきり</small></button>
@@ -2214,7 +2242,7 @@ function realCelebrate(p, m) {
   }
 }
 function clearMatch() {
-  closePkUI(); camera.fov = 36; camera.updateProjectionMatrix(); document.getElementById('fkaim').classList.remove('on'); document.getElementById('fkpick').classList.remove('on'); document.getElementById('fk-sw').style.display = 'none'; document.getElementById('replay').classList.remove('on'); REPLAY.on = null; REPLAY.buf = []; REPLAY.len = 0; fkLine.visible = false; document.body.classList.remove('goalcut');
+  closePkUI(); camera.fov = 36; camera.updateProjectionMatrix(); document.getElementById('fkaim').classList.remove('on'); document.getElementById('fkpick').classList.remove('on'); document.getElementById('fk-sw').style.display = 'none'; document.getElementById('replay').classList.remove('on'); NET.fkId = null; NET.fkPending = ''; REPLAY.on = null; REPLAY.buf = []; REPLAY.len = 0; fkLine.visible = false; document.body.classList.remove('goalcut');
   for (const p of players) { if (!p.mesh) continue; scene.remove(p.mesh.outer); if (p.mesh.mixer) p.mesh.mixer.stopAllAction(); }
   players = []; teams = []; S = null;
   markers.forEach(m => m.g.visible = false);
@@ -3072,22 +3100,37 @@ function fkStart(v, sp) {
   const def = v.opp, me = localHuman(), mine = teams.find(t => t.human === me);
   const atkHuman = v.human != null && v.human === me && (!v.lockP || sp.taker === v.lockP);
   const defHuman = def.human != null && def.human === me && (!def.lockP || def.lockP.role === 'GK');
-  if (NET.role !== 'off' || !mine || !atkHuman) return;   // 人がけるときだけ線を出す（守るときは、ゴレイロが自動で止める）
-  S.fk = { id: ++fkSeq, team: v, taker: sp.taker, indirect: !!sp.indirect, t: 25, guess: defHuman ? null : pkRandom(1)[0], done: false, aim: null, mode: atkHuman ? 'aim' : 'cpu' };   // CPU のゴレイロもどこかを読む
+  const remote = NET.role === 'host' && v.human === 1;   // オンライン：ゲストのチームがける → ゲストの画面でねらって、ホストへ送ってもらう
+  if (NET.role === 'guest' || !mine || (!atkHuman && !remote)) return;   // 人がけるときだけ線を出す（守るときは、ゴレイロが自動で止める）
+  S.fk = { id: ++fkSeq, team: v, taker: sp.taker, indirect: !!sp.indirect, t: 25, guess: defHuman ? null : pkRandom(1)[0], done: false, aim: null, mode: remote ? 'remote' : atkHuman ? 'aim' : 'cpu' };   // CPU のゴレイロもどこかを読む
   S.pkCam = { s: v.dir, x: sp.pos.x, z: sp.pos.z, t: 99 };
-  if (atkHuman) { // 線を動かしてける
-    S.fk.aim = { z: -v.dir * 0.9 * sgn(sp.pos.z || 1), y: 1.3, curve: 0 };
-    const ui = document.getElementById('fkaim'); ui.classList.add('on');
-    document.getElementById('fka-fk').textContent = `${sp.taker.name}　FK ${fkVal(sp.taker)}・カーブ ${cvVal(sp.taker)}`;
-    document.getElementById('fka-curve').value = 0;
-    document.getElementById('fka-title').textContent = S.fk.indirect ? '間接フリーキック：ちょんと出して、味方がこの線でシュート' : 'フリーキック：画面をなぞって ねらう場所を動かそう';
-    fkDraw();
-  } else openPkUI('fkgk', S.fk.id);   // CPU がける：ゴレイロが読むコースを1つ
+  S.fk.aim = { z: -v.dir * 0.9 * sgn(sp.pos.z || 1), y: 1.3, curve: 0 };
+  if (atkHuman) fkShowAim(S.fk);   // 線を動かしてける
 }
+// ねらう線の画面を出す（オフライン・ホスト・オンラインのゲスト）
+function fkShowAim(F) {
+  const ui = document.getElementById('fkaim'); ui.classList.add('on');
+  document.getElementById('fka-fk').textContent = `${F.taker.name}　FK ${fkVal(F.taker)}・カーブ ${cvVal(F.taker)}`;
+  document.getElementById('fka-curve').value = 0;
+  document.getElementById('fka-title').textContent = F.indirect ? '間接フリーキック：ちょんと出して、味方がこの線でシュート' : 'フリーキック：画面をなぞって ねらう場所を動かそう';
+  fkDraw();
+}
+// オンラインのゲスト：自分のチームのフリーキックになったら、ねらう画面を出す
+function guestFkOpen(id, team, taker, indirect) {
+  S.fk = { id, team, taker, indirect, guest: true, done: false, aim: { z: -team.dir * 0.9 * sgn(ball.p.z || 1), y: 1.3, curve: 0 } };
+  fkShowAim(S.fk);
+}
+function guestFkClose() { if (S.fk && S.fk.guest) S.fk = null; document.getElementById('fkaim').classList.remove('on'); fkLine.visible = false; aimMark.visible = false; }
 function fkUpdate(dt) {
   const F = S.fk;
   if (F.done) { if (F.waitT != null) { F.waitT -= dt; if (F.waitT <= 0) { F.waitT = null; fkCpuKick(F); } } return; }
   F.t -= dt;
+  if (F.mode === 'remote') { // オンライン：ゲストが決めたねらいでける（25秒で今の線のまま）
+    const r = NET.remote.fk;
+    if (r) { const [id, z, y, c, act] = String(r).split('|'); if (+id === F.id) { if (act === 'pass') { fkPass(F); return; } F.aim = { z: +z, y: +y, curve: +c }; fkKick(); return; } }
+    if (F.t <= 0) fkKick();
+    return;
+  }
   if (F.mode === 'cpu') { // CPU のキッカー：ゴレイロの読みがそろったら（15秒で自動）
     if (!F.guess && F.t < 10) F.guess = pkRandom(1)[0];
     if (F.guess) { closePkUI(); F.done = true; F.waitT = 0.35; }
@@ -3116,7 +3159,9 @@ function fkPass(F) { // パスで始める：ふつうのフリーキックに�
   if (S.pkCam) S.pkCam.t = 0.05; S.sp.ready = true; S.sp.readyT = 0;
 }
 function fkKick() { // 人がける
-  const F = S.fk; if (!F || F.done) return; F.done = true;
+  const F = S.fk; if (!F || F.done) return;
+  if (F.guest) { NET.fkPending = `${F.id}|${F.aim.z.toFixed(3)}|${F.aim.y.toFixed(3)}|${F.aim.curve.toFixed(3)}|kick`; guestFkClose(); return; }   // ゲスト：ホストへ送る
+  F.done = true;
   document.getElementById('fkaim').classList.remove('on'); fkLine.visible = false; aimMark.visible = false;
   if (!F.indirect) { fkShoot(F.taker, F); return; }
   // 間接：ちょんと横の味方に出して、その味方がダイレクトで（この線で）シュート
@@ -3151,7 +3196,7 @@ function fkShoot(p, F) {
   ui.addEventListener('pointerup', () => last = null); ui.addEventListener('pointercancel', () => last = null);
   document.getElementById('fka-curve').oninput = e => { if (S && S.fk && S.fk.aim) { S.fk.aim.curve = e.target.value / 100; fkDraw(); } };
   document.getElementById('fka-go').onclick = () => { Sound.play('click'); fkKick(); };
-  document.getElementById('fka-pass').onclick = () => { Sound.play('click'); if (S && S.fk) fkPass(S.fk); };
+  document.getElementById('fka-pass').onclick = () => { Sound.play('click'); if (S && S.fk && S.fk.guest) { NET.fkPending = `${S.fk.id}|0|0|0|pass`; guestFkClose(); } else if (S && S.fk) fkPass(S.fk); };
   addEventListener('keydown', e => { // キーボード：矢印でねらい、Space でける
     if (!(S && S.fk && S.fk.aim) || !ui.classList.contains('on')) return;
     const k = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }[e.code]; if (k) { move(k[0], k[1]); e.preventDefault(); }
@@ -3163,14 +3208,15 @@ function startPenalty(v, dist) { // PK（6m）・第2PK（10m）
   S.phase = 'setpiece';
   Object.assign(ball, { owner: null, inNet: 0, receiver: null, isShot: false }); ball.v.set(0, 0, 0); ball.p.set(x, BALL_R, 0); ball.gkLock = null;
   const taker = (v.lockP && v.lockP.role !== 'GK' && !v.lockP.off) ? v.lockP : v.players.filter(p => p.role !== 'GK' && !p.off).sort((a, b) => b.st.sh - a.st.sh)[0];
-  let k = 0;
-  for (const p of players) {
-    if (p.off || p === taker) continue;
-    resetPlayerState(p);
-    if (p === def.players[0]) { p.pos.set(s * (HALF_L - 0.3), 0, 0); p.fx = -s; p.fz = 0; continue; }   // キーパーはゴールライン
-    if (p === v.players[0]) { p.pos.set(-s * (HALF_L - 1), 0, 0); p.fx = s; p.fz = 0; continue; }
-    const zz = [-6, 6, -4.5, 4.5, -8, 8, -7, 7][k % 8]; p.pos.set(x - s * (5 + (k % 3) * 1.5), 0, zz); p.fx = s; p.fz = 0; k++;   // カメラ（キッカーの後ろ）の前に立たないように横にはなれる。ほかの人はボールより後ろ
-  }
+  // ほかの人はボールより5m後ろ。止めたあとのこぼれ球を同じ条件で取りにいけるように、守る人と攻める人を同じきょりに交互に立たせる（カメラの前には立たない）
+  const SPOTS = [[5, -4.5], [5, 4.5], [6.2, -6], [6.2, 6], [7.4, -7.5], [7.4, 7.5], [8.6, -5], [8.6, 5]];
+  const dF = def.players.filter(p => !p.off && p !== def.players[0]), aF = v.players.filter(p => !p.off && p !== taker && p !== v.players[0]);
+  for (const p of players) if (!p.off && p !== taker) resetPlayerState(p);
+  def.players[0].pos.set(s * (HALF_L - 0.3), 0, 0); def.players[0].fx = -s; def.players[0].fz = 0;   // キーパーはゴールライン
+  v.players[0].pos.set(-s * (HALF_L - 1), 0, 0); v.players[0].fx = s; v.players[0].fz = 0;
+  const side = Math.random() < 0.5 ? 1 : -1;
+  dF.forEach((p, i) => { const sp2 = SPOTS[(i * 2) % SPOTS.length]; p.pos.set(x - s * sp2[0], 0, sp2[1] * side * (i % 2 ? -1 : 1)); p.fx = s; p.fz = 0; });
+  aF.forEach((p, i) => { const sp2 = SPOTS[(i * 2) % SPOTS.length]; p.pos.set(x - s * (sp2[0] + 0.4), 0, -sp2[1] * side * (i % 2 ? -1 : 1)); p.fx = s; p.fz = 0; });
   S.sp = { type: 'pk', team: v, taker, pos: V3(x, 0, 0), fx: s, fz: 0, stand: { x: x - s * 0.5, z: 0 }, t: 0, ready: false, readyT: 1.3, cpuT: rand(0.6, 1.2) };
   resetPlayerState(taker); taker.pos.set(S.sp.stand.x, 0, 0); taker.fx = s; taker.fz = 0; taker.locked = true; ball.owner = taker;
   if (v.human != null) setControlled(v, taker);
@@ -4391,7 +4437,7 @@ function beginOnline(st, role) {
   Object.assign(NET, { lastQ: 0, lastEv: 0, lastMsg: 0, snapAt: 0, remote: { mx: 0, mz: 0, dash: false, pass: false, shoot: false, pv: '', sv: '', pc: 0, sc: 0, wc: 0 } });
   newMatch({ mode: 'online', home: st.home, away: st.away, len: st.len, diff: 1, role });
   if (role === 'host') {
-    NET.room.on('i', v => { if (v) NET.remote = { mx: v.mx / 100, mz: v.mz / 100, dash: !!v.d, pass: !!v.p, shoot: !!v.s, gk: !!v.g, pv: v.pv || '', sv: v.sv || '', pc: v.pc, sc: v.sc, wc: v.wc, pk: v.pk || '', leg: !!v.l, kc: v.kc || 0, kv: v.kv || '', kx: (v.kx || 0) / 100, kz: (v.kz || 0) / 100 }; if (v.tc && teams[1]) applyTacticCode(teams[1], v.tc); });
+    NET.room.on('i', v => { if (v) NET.remote = { mx: v.mx / 100, mz: v.mz / 100, dash: !!v.d, pass: !!v.p, shoot: !!v.s, gk: !!v.g, pv: v.pv || '', sv: v.sv || '', pc: v.pc, sc: v.sc, wc: v.wc, pk: v.pk || '', fk: v.fk || '', leg: !!v.l, kc: v.kc || 0, kv: v.kv || '', kx: (v.kx || 0) / 100, kz: (v.kz || 0) / 100 }; if (v.tc && teams[1]) applyTacticCode(teams[1], v.tc); });
   } else {
     NET.room.on('s', applySnap);
   }
@@ -4428,7 +4474,8 @@ function makeSnap() {
     ow: ball.owner ? ball.owner.idx : -1, m: [S.msgId, S.msg[0], S.msg[1]], ev: S.events.slice(),
     st: [teams[0].shots, teams[1].shots, Math.round(teams[0].possT), Math.round(teams[1].possT)], scr: S.scorers,
     k: players.map(p => p.data.key), fl: [teams[0].fouls, teams[1].fouls], ce: [S.celType || '', S.scorer ? S.scorer.idx : -1],
-    pk: S.pk ? [S.pk.id, S.pk.kick.i, Math.ceil(Math.max(0, S.pk.t)), S.pk.res ? S.pk.kz : '', S.pk.res ? S.pk.sz.join(',') : '', S.pk.res || ''] : null };
+    pk: S.pk ? [S.pk.id, S.pk.kick.i, Math.ceil(Math.max(0, S.pk.t)), S.pk.res ? S.pk.kz : '', S.pk.res ? S.pk.sz.join(',') : '', S.pk.res || ''] : null,
+    fk: S.fk && !S.fk.done ? [S.fk.id, S.fk.team.i, S.fk.taker.idx, S.fk.indirect ? 1 : 0] : null };   // フリーキックのねらい中
 }
 function hostSend(now) {
   if (!NET.room || now - NET.sendT < 66) return;
@@ -4437,7 +4484,7 @@ function hostSend(now) {
 function guestSend(now) {
   if (!NET.room) return;
   const w = worldInput(true);
-  const v = { mx: Math.round(w.mx * 100), mz: Math.round(w.mz * 100), d: w.dash ? 1 : 0, p: w.pass ? 1 : 0, s: w.shoot ? 1 : 0, g: w.gk ? 1 : 0, pv: w.pv, sv: w.sv, pc: w.pc, sc: w.sc, wc: w.wc, tc: tacticCode(), pk: PKUI.pending || '', l: w.leg ? 1 : 0, kc: w.kc, kv: w.kv, kx: Math.round(w.kx * 100), kz: Math.round(w.kz * 100) };
+  const v = { mx: Math.round(w.mx * 100), mz: Math.round(w.mz * 100), d: w.dash ? 1 : 0, p: w.pass ? 1 : 0, s: w.shoot ? 1 : 0, g: w.gk ? 1 : 0, pv: w.pv, sv: w.sv, pc: w.pc, sc: w.sc, wc: w.wc, tc: tacticCode(), pk: PKUI.pending || '', fk: NET.fkPending || '', l: w.leg ? 1 : 0, kc: w.kc, kv: w.kv, kx: Math.round(w.kx * 100), kz: Math.round(w.kz * 100) };
   const key = JSON.stringify(v);
   if ((key !== NET.lastIn && now - NET.inT > 45) || now - NET.inT > 300) { NET.lastIn = key; NET.inT = now; NET.room.set('i', v).catch(() => {}); }
 }
@@ -4470,6 +4517,12 @@ function applySnap(s) {
     if (!res && PKUI.role) document.getElementById('pk-time').textContent = tleft + '秒';
     if (res && !PKUI.revealed) pkReveal(kz, sz.split(','), res);
   } else { if (PKUI.role && PKUI.revealed) closePkUI(); if (S.pkCam && S.pkCam.t > 3) S.pkCam.t = 0.9; }
+  // フリーキック（ゲスト）：キッカーの後ろからのカメラ。自分のチームなら ねらう画面
+  if (s.fk) {
+    const [id, ti, tki, ind] = s.fk;
+    if (!S.pkCam || S.pkCam.id !== 'fk' + id) S.pkCam = { id: 'fk' + id, s: teams[ti].dir, x: ball.p.x, z: ball.p.z, t: 99 }; else S.pkCam.t = 99;
+    if (teams[ti].human === 1 && NET.fkId !== id) { NET.fkId = id; guestFkOpen(id, teams[ti], players[tki], !!ind); }
+  } else if (S.fk && S.fk.guest) guestFkClose();
   if (s.ce) { S.celType = s.ce[0]; S.scorer = s.ce[1] >= 0 ? players[s.ce[1]] : null; if (S.scorer) S.goalTeam = S.scorer.team; }
   teams[0].controlled = s.ct[0] >= 0 ? players[s.ct[0]] : null; teams[1].controlled = s.ct[1] >= 0 ? players[s.ct[1]] : null;
   if (s.m[0] !== NET.lastMsg) { NET.lastMsg = s.m[0]; if (NET.lastQ > 1 || s.m[1]) localMsg(s.m[1], s.m[2], s.m[1] === 'GOAL!!' ? 3 : 1.8); }
@@ -4942,10 +4995,38 @@ function startCpuMatch(home, away, diff, len, mode) {
   newMatch({ mode, home, away, diff, len, role: 'off', kit0: settings.kit0 || 'home', kit1: mode === 'cpu' ? (settings.kit1 || 'home') : 'auto' });
   showScreen(null);
 }
-function tryFullscreen() { // Android などは全画面にする（iPhone はできない）
+function tryFullscreen() { // Android などは全画面にする（iPhone はできない）。横画面で固定にしていたら、横にロックも
   const el = document.documentElement;
-  if (IS_TOUCH && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  if (IS_TOUCH && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().then(() => { if (settings.lockLand) lockLandscape(true); }).catch(() => {});
+  else if (settings.lockLand) lockLandscape(true);
 }
+// ----- 横画面で固定 -----
+async function lockLandscape(quiet) {
+  try {
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen();
+    if (screen.orientation && screen.orientation.lock) { await screen.orientation.lock('landscape'); settings.lockLand = true; saveSettings(); if (!quiet) localMsg('', '🔒 横画面で固定したよ（全画面をやめると元にもどる）', 2.2); return true; }
+  } catch (e) {}
+  if (!quiet) localMsg('', IS_IOS ? '📱 iPhone は画面の回転ロックをオフにして、横向きで遊んでね（ホーム画面に追加すると全画面になる）' : 'このブラウザでは固定できなかったよ。横向きにして遊んでね', 3.2);
+  return false;
+}
+document.getElementById('land-btn').onclick = () => { Sound.init(); Sound.play('click'); lockLandscape(false); };
+// ----- ホーム画面に追加（ショートカット）。ふつうのブラウザで遊んでいる人だけにボタンを出す -----
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_APP = (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches)) || navigator.standalone === true;
+let instPrompt = null;
+if (!IS_APP) {
+  const ib = document.getElementById('inst-btn'); if (IS_TOUCH || IS_IOS) ib.style.display = '';
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); instPrompt = e; ib.style.display = ''; });   // Android の Chrome など：ワンタップで追加できる
+  ib.onclick = async () => {
+    Sound.init(); Sound.play('click');
+    if (instPrompt) { instPrompt.prompt(); const r = await instPrompt.userChoice.catch(() => null); instPrompt = null; if (r && r.outcome === 'accepted') { ib.style.display = 'none'; localMsg('', '📲 ホーム画面に追加したよ！', 2); } return; }
+    const h = document.getElementById('inst-help'); h.style.display = h.style.display === 'none' ? '' : 'none';
+    h.innerHTML = IS_IOS ? '<b>iPhone・iPad（Safari）</b><br>① 画面の下（または上）の <b>共有ボタン（□に↑）</b> を押す<br>② <b>「ホーム画面に追加」</b> を押す<br>③ 右上の <b>「追加」</b><br><small>ホーム画面のアイコンから開くと、全画面で遊べるよ</small>'
+      : '<b>Android（Chrome）</b><br>① 右上の <b>︙（メニュー）</b> を押す<br>② <b>「ホーム画面に追加」</b>（または「アプリをインストール」）を押す<br><small>ホーム画面のアイコンから開くと、全画面・横画面で遊べるよ</small>';
+  };
+}
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 function togglePause() {
   if (MODE !== 'match' || !S || S.over) return;
   camLabel();
