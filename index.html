@@ -118,6 +118,14 @@ body.joyR #joyhint{left:auto;right:calc(max(24px,env(safe-area-inset-right)) + 5
 .rk-board{width:100%;border-collapse:collapse;font-size:13px}.rk-board td{padding:3px 6px;border-bottom:1px solid #ffffff14}.rk-board tr.me td{background:#ffd40033;font-weight:900}
 .rk-board td.n{text-align:left}.rk-board td.p{text-align:right;font-weight:900}
 
+/* タイムアウト */
+#tobtn{pointer-events:auto;position:absolute;top:max(8px,env(safe-area-inset-top));right:calc(max(10px,env(safe-area-inset-right)) + 98px);width:42px;height:42px;border-radius:50%;border:2px solid #fff8;background:rgba(8,12,28,.7);color:#fff;font-size:18px;display:none}
+#tobtn.req{background:#ffd400;color:#111;border-color:#fff}
+#toui{position:fixed;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 54px);transform:translateX(-50%);z-index:19;display:none;width:min(440px,calc(100% - 24px));background:rgba(8,12,28,.9);border:2px solid #ffd400;border-radius:16px;padding:10px 12px;text-align:center}
+#toui.on{display:block}
+#toui .tt{font-weight:900;font-size:18px}#toui .tsec{font-size:34px;font-weight:900;color:#ffd400;line-height:1.1}
+#toui .btn{width:auto;padding:8px 12px;font-size:14px}
+
 /* ===== メニュー画面 ===== */
 .screen{position:fixed;inset:0;z-index:20;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,rgba(6,10,26,.45),rgba(6,10,26,.92));touch-action:pan-y}
 .screen.on{display:block}
@@ -352,6 +360,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
 
   <button id="pausebtn">II</button>
   <button id="tacbtn">📋</button>
+  <button id="tobtn" title="タイムアウト（T）">⏱</button>
   <div id="keyhelp">移動 WASD/矢印 ・ パス J（U＝浮き球）・ シュート K（I＝ループ O＝トー）・ スルー L<br>守備：J＝タックル K＝プレス L＝切替 ・ ダッシュ Shift ・ 一時停止 P</div>
 </div>
 
@@ -359,6 +368,8 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
 <div id="fkpick"></div>
 <button id="fk-sw">🔄 キッカー切り替え</button>
 <button id="bench-ff">⏩ はやおくり</button>
+<div id="toui"><div class="tt" id="to-title">⏱ タイムアウト</div><div class="tsec" id="to-sec">45</div><div class="sub" id="to-sub">作戦や選手交代ができるよ</div>
+  <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" id="to-tac">📋 作戦</button><button class="btn gold" id="to-subs">🔄 選手交代</button><button class="btn green" id="to-end">▶ 試合にもどる</button></div></div>
 <div id="replay"><span class="rp-dot"></span> REPLAY<button id="rp-skip">スキップ ▶▶</button></div>
 <div id="fkaim">
   <div class="pk-head"><span id="fka-title"></span><span id="fka-fk" style="color:#ffd400"></span></div>
@@ -2643,6 +2654,7 @@ function newMatch(cfg) {
   ball.owner = null; ball.v.set(0, 0, 0); ball.p.set(0, BALL_R, 0); ball.inNet = 0; ball.lastTouch = null; ball.lastKicker = null; ball.receiver = null;
   HS[0] = {}; HS[1] = {};
   S = { cfg, phase: 'setpiece', clock: 0, half: 1, halfLen: cfg.len * 60, sp: null, deadT: 0, deadNext: null, phaseT: 0, scorers: [], firstKick: cfg.mode === 'tutorial' ? 0 : Math.random() < 0.5 ? 0 : 1,
+    toUsed: [{}, {}], toReq: [false, false], timeout: null, toCpuT: 0,   // タイムアウト：toUsed[チーム][前半1/後半2]
     evId: 0, events: [], msgId: 0, msg: ['', ''], crowdJump: 0, goalTeam: null, time: 0, netShake: [0, 0], snapSeq: 0, over: false };
   colorCrowd({ shirt: teams[0].kit.shirt, shorts: teams[0].kit.shorts }, { shirt: teams[1].kit.shirt, shorts: teams[1].kit.shorts }, teams[0].def.name, teams[1].def.name);
   paintBanners([teams[0].def, teams[1].def], [teams[0].kit, teams[1].kit]);
@@ -2913,7 +2925,8 @@ function scoreGoal(s) {
     showMsg('', '間接フリーキックは直接入れても点にならない', 2.2); ballOut('gk', def, null); return;
   }
   const t = teams.find(x => x.dir === s); // このゴールをせめているチーム
-  t.score++; ball.inNet = s; S.phase = 'goal'; S.phaseT = 6; S.goalTeam = t; S.netShake[s > 0 ? 1 : 0] = 1;
+  t.score++; ball.inNet = s; S.phase = 'goal'; S.phaseT = 6; S.goalTeam = t; S.replayDone = false;   // ゴールのたびにリプレイ（前は1試合の最初のゴールだけだった）
+  S.netShake[s > 0 ? 1 : 0] = 1;
   const k = ball.lastKicker, own = !k || k.team !== t;
   const name = own ? 'オウンゴール' : k.name;
   S.scorers.push({ t: t.i, name, num: own ? 0 : k.num, min: minuteNow() });
@@ -2937,6 +2950,7 @@ function endHalf() {
 }
 function secondHalf() {
   for (const t of teams) t.fouls = 0;   // チームファウルは前半・後半でリセット
+  if (S) { S.toReq = [false, false]; S.timeout = null; }   // 前半に要求して使わなかったタイムアウトは、なくなる
   for (const t of teams) { for (const p of t.players) p.energy = Math.min(100, p.energy + 20); for (const d of benchData(t)) d.energy = Math.min(100, d.energy + 20); } // ハーフタイムで少し回復
   S.half = 2; S.clock = 0;
   for (const t of teams) t.dir *= -1;        // コートを入れかえる
@@ -4674,7 +4688,8 @@ function step(dt) {
   if (ph === 'play') { aerialPlay(); checkPickup(); if (S.phase === 'play') checkOut(); }
   else if (ph === 'dead') { S.deadT -= dt; if (S.deadT <= 0 && S.deadNext) { const f = S.deadNext; S.deadNext = null; f(); } }
   else if (ph === 'setpiece') updateSetPiece(dt);
-  else if (ph === 'goal') { S.phaseT -= dt; if (S.phaseT <= 0) { if (S.cfg.mode === 'tutorial') { startKickoff(teams[0]); endSetPiece(); } else startKickoff(S.goalTeam.opp); } }
+  else if (ph === 'goal') { S.phaseT -= dt; if (S.phaseT <= 0 && !S.replayDone && replayWanted()) S.phaseT = 0.01; if (S.phaseT <= 0) {   // リプレイがまだなら待つ
+  if (S.cfg.mode === 'tutorial') { startKickoff(teams[0]); endSetPiece(); } else startKickoff(S.goalTeam.opp); } }
   else if (ph === 'half') {
     S.phaseT -= dt;
     if (S.phaseT <= 0) {
@@ -5000,10 +5015,14 @@ function beginOnline(st, role) {
   // マイチームどうしでも名前がぶつからないように、オンライン用の名前で登録する
   if (st.hd) { TEAM_BY.oh = { ...st.hd, id: 'oh' }; st = { ...st, home: 'oh' }; }
   if (st.ad) { TEAM_BY.oa = { ...st.ad, id: 'oa' }; st = { ...st, away: 'oa' }; }
+  Object.assign(NET, { offs: [], off: 0, delay: 120, hist: [], toSeq: 0, toEnd: 0, lastTo: 0, lastToEnd: 0, subLog: [], subDone: 0 });
   Object.assign(NET, { lastQ: 0, lastEv: 0, lastMsg: 0, snapAt: 0, remote: { mx: 0, mz: 0, dash: false, pass: false, shoot: false, pv: '', sv: '', pc: 0, sc: 0, wc: 0 } });
   newMatch({ mode: 'online', home: st.home, away: st.away, len: st.len, diff: 1, role });
   if (role === 'host') {
-    NET.room.on('i', v => { if (v) NET.remote = { mx: v.mx / 100, mz: v.mz / 100, dash: !!v.d, pass: !!v.p, shoot: !!v.s, gk: !!v.g, pv: v.pv || '', sv: v.sv || '', pc: v.pc, sc: v.sc, wc: v.wc, pk: v.pk || '', fk: v.fk || '', leg: !!v.l, kc: v.kc || 0, kv: v.kv || '', kx: (v.kx || 0) / 100, kz: (v.kz || 0) / 100 }; if (v.tc && teams[1]) applyTacticCode(teams[1], v.tc); });
+    NET.room.on('i', v => { if (v) NET.remote = { mx: v.mx / 100, mz: v.mz / 100, dash: !!v.d, pass: !!v.p, shoot: !!v.s, gk: !!v.g, pv: v.pv || '', sv: v.sv || '', pc: v.pc, sc: v.sc, wc: v.wc, pk: v.pk || '', fk: v.fk || '', leg: !!v.l, kc: v.kc || 0, kv: v.kv || '', kx: (v.kx || 0) / 100, kz: (v.kz || 0) / 100 }; if (v && v.tc && teams[1]) applyTacticCode(teams[1], v.tc);
+      if (v && v.to > NET.lastTo) { NET.lastTo = v.to; requestTimeout(1); }   // ゲストのタイムアウト
+      if (v && v.te > NET.lastToEnd) { NET.lastToEnd = v.te; if (S.timeout && S.timeout.ti === 1) endTimeout(); }
+      if (v && v.su) { const cs = v.su.split(';'); for (; NET.subDone < cs.length; NET.subDone++) { const c = cs[NET.subDone].split(','); if (c[0] === 'w') squadSwap(teams[1], c[1], c[2]); else if (c[0] === 'p') putSet(teams[1], +c[1]); } } });
   } else {
     NET.room.on('s', applySnap);
   }
@@ -5034,6 +5053,66 @@ function leaveOnline(sayBye = true) {
   NET.room = null; NET.role = 'off'; NET.started = false; NET.guestTeam = null;
   document.getElementById('pausebtn').textContent = 'II';
 }
+
+// =====================================================================
+//  タイムアウト：前半・後半に1回ずつ。要求すると、次の自分たちのボールで止まったとき（キックイン・FK・キックオフなど）に始まる。本当の時間で45秒
+// =====================================================================
+const TO_SEC = 45;
+const toTeamName = i => teams[i] ? teams[i].def.name : '';
+function canTimeout(i) { return !!(S && !S.over && (S.half === 1 || S.half === 2) && S.cfg.mode !== 'tutorial' && !S.toUsed[i][S.half] && !S.toReq[i] && !(S.timeout && S.timeout.ti === i)); }
+function requestTimeout(i) {   // ホスト・オフラインで動く（ゲストは送るだけ）
+  if (!canTimeout(i)) return false;
+  S.toReq[i] = true; showMsg('', `⏱ ${toTeamName(i)} がタイムアウトを要求（次のマイボールで）`, 2.2); return true;
+}
+function timeoutCheck(dt) {
+  if (!S || S.timeout || S.over) return;
+  // CPU（なりきりの監督もふくむ）：負けている後半に、ときどき使う
+  for (const t of teams) if ((t.human == null || t.lockData) && canTimeout(t.i) && S.half === 2 && t.score < t.opp.score && S.clock > S.halfLen * 0.35) { S.toCpuT += dt; if (S.toCpuT > 1 && Math.random() < 0.02) { S.toCpuT = 0; requestTimeout(t.i); } }
+  const sp = S.sp; if (S.phase !== 'setpiece' || !sp || !sp.team || sp.type === 'pk' || S.pk || S.fk || REPLAY.on) return;
+  const i = sp.team.i; if (!S.toReq[i]) return;
+  S.toReq[i] = false; S.toUsed[i][S.half] = true; S.timeout = { ti: i, t: TO_SEC };
+  if (teams[i].human == null || teams[i].lockData) cpuTimeoutTactic(teams[i]);
+  sfx('whistle', 2); showMsg('TIME OUT', toTeamName(i), 2);
+}
+function cpuTimeoutTactic(t) {   // CPU：タイムアウトで作戦を変える（負けていたら前から・パワープレーも）
+  t.line = 1; t.atk = ['pivo', 'side', 'bal'][(Math.random() * 3) | 0]; if (t.score < t.opp.score - 1 && S.clock > S.halfLen * 0.75) t.pp = true;
+}
+function timeoutStep(dt) { S.timeout.t -= dt; if (S.timeout.t <= 0) endTimeout(); }
+function endTimeout() {
+  if (!S || !S.timeout) return; S.timeout = null;
+  if (['sc-tactics', 'sc-subs'].some(id => document.getElementById(id).classList.contains('on'))) showScreen(null);
+  sfx('whistle', 1); showMsg('', '⏱ タイムアウト終了。試合再開！', 1.6);
+}
+// 画面：⏱ ボタン・タイムアウト中のパネル（オンラインのゲストも、送られてきた S.timeout で出す）
+function timeoutUI() {
+  const b = document.getElementById('tobtn'), ui = document.getElementById('toui');
+  if (MODE !== 'match' || !S) { b.style.display = 'none'; ui.classList.remove('on'); return; }
+  const me = localHuman(), mt = teams.find(t => t.human === me), mi = mt ? mt.i : -1;
+  const show = mt && !mt.lockData && S.cfg.mode !== 'tutorial' && !S.over && (S.half === 1 || S.half === 2) && !S.toUsed[mi][S.half];
+  b.style.display = show && !S.timeout ? 'block' : 'none'; b.classList.toggle('req', !!(mt && S.toReq[mi]));
+  const T = S.timeout; ui.classList.toggle('on', !!T);
+  if (T) {
+    const mine = T.ti === mi;
+    document.getElementById('to-title').textContent = `⏱ タイムアウト（${toTeamName(T.ti)}）`;
+    document.getElementById('to-sec').textContent = Math.max(0, Math.ceil(T.t)) + '秒';
+    const can = mt && !mt.lockData;
+    document.getElementById('to-tac').style.display = can ? '' : 'none'; document.getElementById('to-subs').style.display = can ? '' : 'none';
+    document.getElementById('to-end').style.display = mine && can ? '' : 'none';
+    document.getElementById('to-sub').textContent = !can ? '監督が作戦を話しています…' : mine ? '作戦や選手交代ができるよ（終わったら「試合にもどる」）' : '相手のタイムアウト。こちらも作戦や選手交代ができるよ';
+  }
+}
+function pressTimeout() {
+  if (!S || MODE !== 'match') return; Sound.play('click');
+  const me = localHuman(), mt = teams.find(t => t.human === me); if (!mt || mt.lockData) return;
+  if (NET.role === 'guest') { if (canTimeout(mt.i)) { NET.toSeq = (NET.toSeq || 0) + 1; S.toReq[mt.i] = true; localMsg('', '⏱ タイムアウトを要求した（次のマイボールで）', 2); } return; }
+  if (!requestTimeout(mt.i)) localMsg('', S.toReq[mt.i] ? 'もう要求しているよ。次のマイボールで始まる' : 'この前後半のタイムアウトは、もう使ったよ', 1.8);
+}
+document.getElementById('tobtn').onclick = pressTimeout;
+addEventListener('keydown', e => { if (e.code === 'KeyT' && MODE === 'match' && !PAUSED && !e.repeat && !document.querySelector('.screen.on')) pressTimeout(); });
+document.getElementById('to-tac').onclick = () => { Sound.play('click'); openTactics('to'); };
+document.getElementById('to-subs').onclick = () => { Sound.play('click'); subSel = null; subsFrom = 'to'; openSubs(); };
+document.getElementById('to-end').onclick = () => { Sound.play('click'); if (NET.role === 'guest') NET.toEnd = (NET.toEnd || 0) + 1; else endTimeout(); };
+setInterval(timeoutUI, 200);
 
 // =====================================================================
 //  STRIKEリーグ（ランク戦）：遊んだ人が RANK_UNLOCK 人をこえたら解禁。月ごとのシーズン、上位ほどいい報酬
@@ -5239,7 +5318,10 @@ function makeSnap() {
     st: [teams[0].shots, teams[1].shots, Math.round(teams[0].possT), Math.round(teams[1].possT)], scr: S.scorers,
     k: players.map(p => p.data.key), fl: [teams[0].fouls, teams[1].fouls], ce: [S.celType || '', S.scorer ? S.scorer.idx : -1],
     pk: S.pk ? [S.pk.id, S.pk.kick.i, Math.ceil(Math.max(0, S.pk.t)), S.pk.res ? S.pk.kz : '', S.pk.res ? S.pk.sz.join(',') : '', S.pk.res || ''] : null,
-    fk: S.fk && !S.fk.done ? [S.fk.id, S.fk.team.i, S.fk.taker.idx, S.fk.indirect ? 1 : 0] : null };   // フリーキックのねらい中
+    fk: S.fk && !S.fk.done ? [S.fk.id, S.fk.team.i, S.fk.taker.idx, S.fk.indirect ? 1 : 0] : null,   // フリーキックのねらい中
+    rp: REPLAY.on ? (REPLAY.on.rate < 1 ? 2 : 1) : 0,
+    t: Math.round(performance.now()), v: players.flatMap(p => [r(p.vel.x), r(p.vel.z)]),   // ホストの時計と、選手の速さ（ゲストがなめらかにつなぐため）
+    to: S.timeout ? [S.timeout.ti, Math.ceil(S.timeout.t)] : null, tq: [S.toReq[0] ? 1 : 0, S.toReq[1] ? 1 : 0, S.toUsed[0][S.half] ? 1 : 0, S.toUsed[1][S.half] ? 1 : 0] };   // タイムアウト   // リプレイ中（ゲストも REPLAY の表示とカメラにする）
 }
 function hostSend(now) {
   if (!NET.room || now - NET.sendT < 66) return;
@@ -5248,7 +5330,7 @@ function hostSend(now) {
 function guestSend(now) {
   if (!NET.room) return;
   const w = worldInput(true);
-  const v = { mx: Math.round(w.mx * 100), mz: Math.round(w.mz * 100), d: w.dash ? 1 : 0, p: w.pass ? 1 : 0, s: w.shoot ? 1 : 0, g: w.gk ? 1 : 0, pv: w.pv, sv: w.sv, pc: w.pc, sc: w.sc, wc: w.wc, tc: tacticCode(), pk: PKUI.pending || '', fk: NET.fkPending || '', l: w.leg ? 1 : 0, kc: w.kc, kv: w.kv, kx: Math.round(w.kx * 100), kz: Math.round(w.kz * 100) };
+  const v = { mx: Math.round(w.mx * 100), mz: Math.round(w.mz * 100), d: w.dash ? 1 : 0, p: w.pass ? 1 : 0, s: w.shoot ? 1 : 0, g: w.gk ? 1 : 0, pv: w.pv, sv: w.sv, pc: w.pc, sc: w.sc, wc: w.wc, tc: tacticCode(), pk: PKUI.pending || '', fk: NET.fkPending || '', l: w.leg ? 1 : 0, kc: w.kc, kv: w.kv, kx: Math.round(w.kx * 100), kz: Math.round(w.kz * 100), to: NET.toSeq || 0, te: NET.toEnd || 0, su: (NET.subLog || []).join(';') };
   const key = JSON.stringify(v);
   if ((key !== NET.lastIn && now - NET.inT > 45) || now - NET.inT > 300) { NET.lastIn = key; NET.inT = now; NET.room.set('i', v).catch(() => {}); }
 }
@@ -5260,6 +5342,19 @@ function applySnap(s) {
   teams[0].score = s.sc[0]; teams[1].score = s.sc[1]; teams[0].dir = s.dr; teams[1].dir = -s.dr;
   teams[0].shots = s.st[0]; teams[1].shots = s.st[1]; teams[0].possT = s.st[2]; teams[1].possT = s.st[3];
   S.scorers = s.scr || [];
+  // なめらかにつなぐための記録：届いた時間のずれ（いちばん早く届いたときが基準）と、少し前のようす
+  if (s.t != null) {
+    const off = performance.now() - s.t; NET.offs.push(off); if (NET.offs.length > 60) NET.offs.shift();
+    NET.off = Math.min(...NET.offs); const avg = NET.offs.reduce((a, b) => a + b, 0) / NET.offs.length;
+    NET.delay = clamp(60 + (avg - NET.off) * 0.8, 60, 250);   // シミュレーションで決めた：前と同じくらいのおくれで、ガタガタは約16分の1   // ネットがゆれるほど、少し前を見せる（止まったりワープしたりしないように）
+    NET.hist.push({ t: s.t, p: players.map((p, i) => [s.p[i * 4] / 100, s.p[i * 4 + 1] / 100, s.v ? s.v[i * 2] / 100 : 0, s.v ? s.v[i * 2 + 1] / 100 : 0]), b: s.b.map(x => x / 100) });
+    if (NET.hist.length > 40) NET.hist.shift();
+  }
+  // タイムアウト（ゲスト）
+  S.timeout = s.to ? { ti: s.to[0], t: s.to[1] } : null; if (s.tq) { S.toReq = [!!s.tq[0], !!s.tq[1]]; S.toUsed[0][S.half] = !!s.tq[2]; S.toUsed[1][S.half] = !!s.tq[3]; }
+  // ホストがリプレイを流している：ゲストも REPLAY の表示・リプレイのカメラ・スロー
+  if (s.rp && !REPLAY.on) { REPLAY.on = { guest: true, rate: 1, cut: true }; document.getElementById('replay').classList.add('on'); document.getElementById('rp-skip').style.display = 'none'; document.getElementById('msg').classList.remove('on'); }
+  if (REPLAY.on && REPLAY.on.guest) { if (s.rp) REPLAY.on.rate = s.rp === 2 ? 0.35 : 1; else { REPLAY.on = null; document.getElementById('replay').classList.remove('on'); } }
   ball.tgt = s.b.map(v => v / 100);
   ball.owner = s.ow >= 0 ? players[s.ow] : null;
   players.forEach((p, i) => {
@@ -5296,7 +5391,15 @@ function applySnap(s) {
   updateScoreboard();
 }
 function guestFrame(dt) { // ゲスト：送られてきた位置へなめらかに動かす
-  const k = 1 - Math.exp(-dt * 14);
+  const H = NET.hist; let hb = null;
+  if (H && H.length) {
+    const rt = performance.now() - NET.off - NET.delay;
+    let i = H.length - 1; while (i > 0 && H[i].t > rt) i--;
+    const a = H[i], b = H[i + 1];
+    if (b && rt >= a.t) { const u = clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1); players.forEach((p, j) => { if (p.tgt) { p.tgt.x = a.p[j][0] + (b.p[j][0] - a.p[j][0]) * u; p.tgt.z = a.p[j][1] + (b.p[j][1] - a.p[j][1]) * u; } }); hb = a.b.map((v, k2) => k2 < 3 ? v + (b.b[k2] - v) * u : b.b[k2]); }
+    else { const e = clamp((rt - a.t) / 1000, 0, 0.2); players.forEach((p, j) => { if (p.tgt) { p.tgt.x = a.p[j][0] + a.p[j][2] * e; p.tgt.z = a.p[j][1] + a.p[j][3] * e; } }); const q = a.b; hb = [q[0] + q[3] * e, Math.max(BALL_R, q[1] + q[4] * e - 0.5 * GRAV * e * e), q[2] + q[5] * e]; }
+  }
+  const k = 1 - Math.exp(-dt * 12);   // 少しおくれて追いかける：届くのがおくれて位置が直っても、ワープに見えないように
   for (const p of players) {
     p.kickAnim -= dt; p.tackleAnim -= dt;
     if (!p.tgt) continue;
@@ -5308,7 +5411,8 @@ function guestFrame(dt) { // ゲスト：送られてきた位置へなめらか
     while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
     const a = cur + da * k; p.fx = Math.sin(a); p.fz = Math.cos(a);
   }
-  if (ball.tgt) {
+  if (hb) { const kb = 1 - Math.exp(-dt * 18); ball.p.x += (hb[0] - ball.p.x) * kb; ball.p.y += (hb[1] - ball.p.y) * kb; ball.p.z += (hb[2] - ball.p.z) * kb; }
+  else if (ball.tgt) {
     const age = Math.min(0.15, (performance.now() - NET.snapAt) / 1000), b = ball.tgt;
     const tx = b[0] + b[3] * age, ty = Math.max(BALL_R, b[1] + b[4] * age), tz = b[2] + b[5] * age;
     const kb = 1 - Math.exp(-dt * 20);
@@ -5553,7 +5657,7 @@ function updateCamera(dt) {
 const pkV = V3();
 function pkLayout() { // コースのボタンを、3D のゴールにぴったり重ねる
   const pc = S.pkCam; if (!pc) return;
-  const gx = pc.s * HALF_L, toScr = (y, z) => { pkV.set(gx, y, z).project(camera); return [(pkV.x + 1) / 2 * VW(), (1 - pkV.y) / 2 * VHeight]; };
+  const gx = pc.s * HALF_L, toScr = (y, z) => { pkV.set(gx, y, z).project(camera); return [(pkV.x + 1) / 2 * VW(), (1 - pkV.y) / 2 * VH()]; };
   const a = toScr(GOAL_H, -pc.s * GOAL_W), b = toScr(0, pc.s * GOAL_W);   // 左上と右下（キッカーから見て）
   const el = document.querySelector('.pk-goal'), L = Math.min(a[0], b[0]), T = Math.min(a[1], b[1]);
   Object.assign(el.style, { left: L + 'px', top: T + 'px', width: Math.abs(b[0] - a[0]) + 'px', height: Math.abs(b[1] - a[1]) + 'px' });
@@ -6249,7 +6353,9 @@ const ROLE_JP = { GK: 'GK', FIXO: 'フィクソ', ALA_L: 'アラ左', ALA_R: '�
 let subSel = null;
 function enBar(e) { return `<div class="en"><i style="width:${e}%;background:${e < 40 ? '#ff5a4f' : e < 65 ? '#ffd400' : '#3ddc84'}"></i></div>`; }
 function openSubs() {
-  const t = teams[0]; if (!t) return;
+  const t = (NET.role === 'guest' ? teams[1] : teams[0]); if (!t) return;
+  const swap = (a, b) => { const ok = squadSwap(t, a, b); if (ok && NET.role === 'guest') NET.subLog.push('w,' + a + ',' + b); return ok; };   // ゲスト：ホストにも同じ交代を送る
+  const put = si => { putSet(t, si); if (NET.role === 'guest') NET.subLog.push('p,' + si); };
   const ROLE4 = ['FIXO', 'ALA_L', 'ALA_R', 'PIVO'];
   const cell = (d, role) => {
     const on = t.players.some(p => p.data === d && !p.off), a = role === 'GK' ? 3 : (d.apt ? d.apt[posKey(role)] : 3);
@@ -6265,11 +6371,11 @@ function openSubs() {
   body.querySelectorAll('.sp2').forEach(el => el.onclick = () => {
     Sound.play('click');
     const k = el.dataset.k;
-    if (subSel && subSel !== k) { if (!squadSwap(t, subSel, k)) localMsg('', 'キーパーはキーパーどうしで入れかえてね', 1.6); subSel = null; }
+    if (subSel && subSel !== k) { if (!swap(subSel, k)) localMsg('', 'キーパーはキーパーどうしで入れかえてね', 1.6); subSel = null; }
     else subSel = subSel === k ? null : k;
     openSubs();
   });
-  body.querySelectorAll('[data-put]').forEach(b => b.onclick = e => { e.stopPropagation(); Sound.play('click'); putSet(t, +b.dataset.put); openSubs(); });
+  body.querySelectorAll('[data-put]').forEach(b => b.onclick = e => { e.stopPropagation(); Sound.play('click'); put(+b.dataset.put); openSubs(); });
   segPicker(document.getElementById('seg-setmin'), ['しない', '2分', '3分', '4分', '5分'], [0, 2, 3, 4, 5].indexOf(t.setMin), i => { t.setMin = [0, 2, 3, 4, 5][i]; t.setClock = 0; });
   showScreen('sc-subs');
 }
@@ -6313,7 +6419,7 @@ document.getElementById('tacbtn').onclick = () => { // 試合中の📋：オフ
   if (MODE !== 'match' || !S || S.over) return; Sound.play('click');
   if (NET.role === 'off' && !PAUSED) { PAUSED = true; Sound.crowdTo(0, 0.2); openTactics('play'); } else openTactics(PAUSED ? 'sc-pause' : 'play');
 };
-document.getElementById('tc-back').onclick = () => { Sound.play('click'); if (tacFrom === 'play') { if (NET.role === 'off') { PAUSED = false; Sound.crowdTo(0.05, 0.2); } showScreen(null); } else if (tacFrom === 'sc-myteam') openMyTeam(); else showScreen(tacFrom); };
+document.getElementById('tc-back').onclick = () => { Sound.play('click'); if (tacFrom === 'to') showScreen(null); else if (tacFrom === 'play') { if (NET.role === 'off') { PAUSED = false; Sound.crowdTo(0.05, 0.2); } showScreen(null); } else if (tacFrom === 'sc-myteam') openMyTeam(); else showScreen(tacFrom); };
 let subsFrom = 'sc-pause';   // 交代の画面を閉じたらどこへもどるか
 document.getElementById('p-subs').onclick = () => { Sound.play('click'); subSel = null; subsFrom = 'sc-pause'; openSubs(); };
 // ----- ハーフタイムの画面 -----
@@ -6334,7 +6440,7 @@ function openHalftime() {
 document.getElementById('h-subs').onclick = () => { Sound.play('click'); subSel = null; subsFrom = 'sc-half'; openSubs(); };
 document.getElementById('h-ctl').onclick = () => { Sound.play('click'); ctlTab(IS_TOUCH ? 'touch' : 'key'); ctlFrom = 'sc-half'; showScreen('sc-controls'); };
 document.getElementById('h-go').onclick = () => { Sound.play('click'); PAUSED = false; showScreen(null); Sound.crowdTo(0.05, 0.5); secondHalf(); };
-document.getElementById('subs-back').onclick = () => { Sound.play('click'); showScreen(subsFrom); };
+document.getElementById('subs-back').onclick = () => { Sound.play('click'); showScreen(subsFrom === 'to' ? null : subsFrom); };
 document.getElementById('setup-go').onclick = () => {
   Sound.init(); Sound.play('click');
   const [me, opp] = setupTeams(true);
@@ -6401,7 +6507,7 @@ let lastT = performance.now();
 const REPLAY = { buf: [], len: 0, max: 5.5, on: null };
 const RP_KEYS = ['animSpeed', 'kickAnim', 'kickType', 'kickClip', 'kickTwistAng', 'tackleAnim', 'dive', 'diveDir', 'slide', 'stance', 'savePose', 'savePoseT', 'saveSide', 'hold', 'legPose', 'legPoseType', 'stun', 'off', 'celebrate'];
 function recFrame(dt) {
-  if (!S || NET.role !== 'off' || REPLAY.on || S.cfg.mode === 'tutorial') return;
+  if (!S || !replayWanted() || REPLAY.on) return;
   if (S.phase !== 'play' && S.phase !== 'setpiece' && S.phase !== 'dead') return;
   REPLAY.buf.push({ dt, s: !!ball.isShot, b: [ball.p.x, ball.p.y, ball.p.z], ps: players.map(p => [p.pos.x, p.pos.z, p.fx, p.fz, p.vel.x, p.vel.z, p.trick ? { ...p.trick } : null, ...RP_KEYS.map(k => p[k])]) });
   REPLAY.len += dt;
@@ -6412,7 +6518,7 @@ function replayApply(fr) {
   players.forEach((p, i) => { const a = fr.ps[i]; if (!a) return; p.pos.x = a[0]; p.pos.z = a[1]; p.fx = a[2]; p.fz = a[3]; p.vel.x = a[4]; p.vel.z = a[5]; p.trick = a[6]; RP_KEYS.forEach((k, j) => { p[k] = a[7 + j]; }); });
 }
 function replayStart() {
-  if (REPLAY.buf.length < 30) { S.replayDone = true; return; }
+  if (REPLAY.buf.length < 8) { S.replayDone = true; return; }   // 記録がほとんどないときだけ、出さない
   const total = REPLAY.buf.reduce((a, f) => a + f.dt, 0);
   // スローにするところ：最後のシュートが打たれた少し前から（シュートが見つからなければ最後の1.2秒）
   const fr = REPLAY.buf; let k = fr.length - 1; while (k > 0 && !fr[k].s) k--; while (k > 0 && fr[k - 1].s) k--;
@@ -6420,7 +6526,7 @@ function replayStart() {
   const slowFrom = fr[k] && fr[k].s ? Math.max(0, tS - 0.8) : total - 1.2;
   REPLAY.on = { frames: REPLAY.buf.slice(), i: 0, acc: 0, t: 0, total, rate: 1, cut: true, slowFrom, saved: players.map(p => ({ pos: p.pos.clone(), fx: p.fx, fz: p.fz, celebrate: p.celebrate })), ball: ball.p.clone() };
   for (const p of players) { const m = p.mesh; if (m) { m.kickOn = m.tackOn = m.diveOn = false; } }
-  document.getElementById('replay').classList.add('on'); document.getElementById('msg').classList.remove('on');
+  document.getElementById('replay').classList.add('on'); document.getElementById('msg').classList.remove('on'); document.getElementById('rp-skip').style.display = '';
 }
 function replayEnd() {
   const R = REPLAY.on; if (!R) return;
@@ -6439,12 +6545,14 @@ function replayStep(dt) {
   replayApply(R.frames[R.i]);
   if (R.t >= R.total + 0.5) replayEnd();
 }
+// リプレイを流すか：チュートリアル以外は いつも。オンラインはホストが流して、ゲストには動きが送られる（ゲストは自分では流さない）
+const replayWanted = () => !!S && S.cfg.mode !== 'tutorial' && NET.role !== 'guest';
 function replayCheck() { // ゴールのあと、よろこぶアップを少し見せてからリプレイ
-  if (!S || S.phase !== 'goal' || S.replayDone || REPLAY.on || NET.role !== 'off' || S.cfg.mode === 'tutorial' || !S.goalAt) return;
+  if (!S || S.phase !== 'goal' || S.replayDone || REPLAY.on || !replayWanted() || !S.goalAt) return;
   if (performance.now() / 1000 - S.goalAt > 2.8) replayStart();
 }
 document.getElementById('bench-ff').onclick = () => { Sound.play('click'); window.__speed = (window.__speed || 1) > 1 ? 1 : 3; };
-document.getElementById('rp-skip').onclick = () => { Sound.play('click'); replayEnd(); };
+document.getElementById('rp-skip').onclick = () => { Sound.play('click'); if (NET.role !== 'guest') replayEnd(); };
 // なりきりキーパー：相手のシュートが来たら、少しスローにして「セーブ」を押しやすくする
 function gkSlowCheck() {
   const t = teams[0], g = t && t.lockP;
@@ -6639,8 +6747,9 @@ function frame(now) {
     if (NET.role === 'guest') { guestFrame(dt); guestSend(now); }
     else {
       if (!PAUSED && !S.over) {
-        if (REPLAY.on) replayStep(dt);   // リプレイ中は試合を止めて、記録した動きを流す
-        else { gkSlowCheck(); const sl = S.hitStop > 0 ? 0.06 : S.slowT > 0 ? 0.5 : 1; S.slowT -= dt; S.hitStop -= dt; const gd = dt * (window.__speed || 1) * sl; step(gd); recFrame(gd); replayCheck(); }   // セーブの瞬間は、ほとんど止める
+        if (S.timeout) timeoutStep(dt);   // タイムアウト中は試合を止める（本当の時間で45秒）
+        else if (REPLAY.on) replayStep(dt);   // リプレイ中は試合を止めて、記録した動きを流す
+        else { gkSlowCheck(); const sl = S.hitStop > 0 ? 0.06 : S.slowT > 0 ? 0.5 : 1; S.slowT -= dt; S.hitStop -= dt; const gd = dt * (window.__speed || 1) * sl; step(gd); recFrame(gd); replayCheck(); timeoutCheck(dt); }   // セーブの瞬間は、ほとんど止める
       }
       if (NET.role === 'host') hostSend(now);
     }
