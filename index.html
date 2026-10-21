@@ -2097,7 +2097,7 @@ function stageInit() {
       void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0);
         float tw = 0.5 + 0.5 * sin(uTime * (1.5 + fract(ph) * 3.0) + ph);
         vA = clamp(0.25 + tw * 0.75 + uBoost, 0.0, 1.0);
-        gl_PointSize = (2.5 + tw * 3.0 + uBoost * 3.0) * (240.0 / -mv.z); gl_Position = projectionMatrix * mv; }`,
+        gl_PointSize = min(9.0, (1.6 + tw * 2.0 + uBoost * 2.0) * (170.0 / -mv.z)); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vA; void main() { float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(1.0, 0.97, 0.9, vA * (1.0 - d * 2.0)); }` });
   STAGE.phones = new THREE.Points(pg, pm); STAGE.phones.visible = false; STAGE.phones.frustumCulled = false; scene.add(STAGE.phones);
   // 紙ふぶき（小さな紙。まとめて1回で描く）
@@ -3162,7 +3162,7 @@ function updateSetPiece(dt) {
   if (sp.type === 'pk' && S.pk) { pkUpdate(dt); return; }   // PK は読み合い
   if (sp.type === 'fk' && S.fk) { fkUpdate(dt); return; }   // ゴールに近いフリーキックも読み合い
   if (sp.type === 'fk' && sp.wall && sp.fkCheck !== true && sp.t < 4 && sp.wall.some(w => d2(w.p.pos, w) > 0.6)) return;   // 壁がならぶのを待つ
-  if (sp.type === 'fk' && sp.fkCheck !== true) { sp.fkCheck = true; if (sp.near) { fkStart(sp.team, sp); if (S.fk) return; } }
+  if (sp.type === 'fk' && sp.fkCheck !== true) { sp.fkCheck = true; fkStart(sp.team, sp); if (S.fk) return; }   // 人がけるフリーキックは、ゴールからの距離に関係なく毎回ねらう画面を出す（2026-10-21：前は15mより近いときだけで、出たり出なかったりした。遠いときは「パスで始める」も使える）
   if (!sp.ready) { sp.readyT -= dt; if (sp.readyT <= 0) { sp.ready = true; sfx('whistle', 1); } return; }
   if (tk.team.human == null || (tk.team.lockData && tk !== tk.team.lockP)) { sp.cpuT -= dt; if (sp.cpuT <= 0) cpuRestartKick(tk); }
   else if (sp.t > 10 && sp.type !== 'kickoff') doPass(tk, null, null); // 人がずっとけらないときは自動でパス（キックオフは自分でけるまで待つ）
@@ -3576,6 +3576,13 @@ function doPass(p, dir, target, throwIt, o = {}) {
   kickTwist(p, ks, dx, dz);
   ball.receiver = target || null;   // 受ける味方は自動でボールまで走り、取ったらその選手に切りかわる
   ball.passFrom = { x: p.pos.x, z: p.pos.z }; ball.passBy = p; if (p.ms) p.ms.passes++;
+  ball.lobTo = null;
+  if (human && lob && !throwIt && p.team.controlled === p && !p.team.lockData) { // 人が出した浮き球：ボールが落ちる所にいちばん近い味方へ、すぐカーソルを切りかえる（自分でヘディング・ボレーできるように）（2026-10-21）
+    const T = 2 * vy / GRAV, lx = ball.p.x + kv.x * T, lz = ball.p.z + kv.z * T;   // 落ちる所
+    let rc = null, rd = 1e9;
+    for (const m of p.team.players) { if (m === p || m.off || m.role === 'GK') continue; const dd = Math.hypot(m.pos.x - lx, m.pos.z - lz); if (dd < rd) { rd = dd; rc = m; } }
+    if (rc) { ball.receiver = rc; ball.lobTo = rc; setControlled(p.team, rc); }
+  }
   const t = p.team;   // 戦術のワンツー：パスを出した人が前へ走りこむ
   if (target && !through && !throwIt && p.role !== 'GK' && target.role !== 'GK' && !t.oneTwo && S.phase === 'play' && (p.pos.x - target.pos.x) * t.dir > -6
       && p.pos.x * t.dir > -8 && Math.random() < playLv(t, 'onetwo') * 0.5) {
@@ -4231,7 +4238,7 @@ function aerialPlay() {
   const gx = HALF_L * t.dir, toGoal = Math.hypot(gx - p.pos.x, p.pos.z), attacking = p.pos.x * t.dir > 0, fromOpp = ball.lastTouch && ball.lastTouch !== t;
   const aimed = ball.cross || (human && ball.receiver === p);   // クロス（自分が操作しているときは、自分へのパスも）
   let act;
-  if (human) act = inp.shoot ? 'shot' : inp.pass ? 'pass' : head && aimed ? 'pass' : 'trap';   // シュートボタン＝ヘディング／ボレーシュート、パス＝味方へ。押していなければ、自分へのクロスだけ頭でスティックの方へ（ほかは落ちてから止める）
+  if (human) act = inp.shoot ? 'shot' : inp.pass ? 'pass' : 'trap';   // シュートボタン＝ヘディング／ボレーシュート、パス＝味方へ。押していなければ、頭ではさわらず、落ちてから止める（2026-10-21：前は自分へのクロスだと、押していなくても勝手に頭でパスしていた）
   else if (head) {
     if (!aimed && Math.random() > (fromOpp && !attacking ? 0.3 : 0.1)) act = 'trap';   // ふつうの浮き球は、落ちてから止めることが多い（相手の浮き球を守るときは、ときどき頭でクリア）
     else if (attacking && toGoal < 9 && (ball.cross || Math.random() < 0.4)) act = 'shot';
@@ -5095,7 +5102,7 @@ function humanUpdate(t, inp, hs, dt) {
   const spd = baseSpeed(p) * Math.min(1, mag);
   let mx = dir ? dir.x * spd : 0, mz = dir ? dir.z * spd : 0;
   if (inp.dash && mag > 0.3 && p.stamina > 8) { const k = SPRINT * (ball.owner === p ? 0.94 : 1); mx *= k; mz *= k; tutEv('dashT', dt); }   // ドリブル中のダッシュは少しおそい
-  if (t.lockP === p && p.role !== 'GK' && ph === 'play' && !ball.owner && ball.receiver === p) { // なりきり：自分へのパス → 受ける場所へ自動で寄る（一人称だと距離が分かりにくいので）
+  if ((t.lockP === p || ball.lobTo === p) && p.role !== 'GK' && ph === 'play' && !ball.owner && ball.receiver === p) { // なりきり：自分へのパス → 受ける場所へ自動で寄る（一人称だと距離が分かりにくいので）。自分が出した浮き球で切りかわった受け手も同じ（2026-10-21）
     const ip = interceptPoint(p), dx = ip.x - p.pos.x, dz = ip.z - p.pos.z, d = Math.hypot(dx, dz);
     if (d > 0.15) {
       const as = baseSpeed(p) * (d > 2.5 && p.stamina > 10 ? SPRINT * 0.9 : clamp(d / 1.2, 0.3, 1));
@@ -5320,7 +5327,8 @@ const joyzone = document.getElementById('joyzone'), joybase = document.getElemen
 joyzone.addEventListener('touchstart', e => {
   e.preventDefault(); if (touch.id !== null) return;
   const t = e.changedTouches[0], q = PT(t); touch.id = t.identifier; touch.ox = q.x; touch.oy = q.y;
-  joybase.style.display = 'block'; joybase.style.left = (q.x - joyzone.offsetLeft) + 'px';   // スティックの場所が右でも合うように joybase.style.top = (FORCE ? q.y - joyzone.offsetTop : t.clientY - joyzone.getBoundingClientRect().top) + 'px';
+  joybase.style.display = 'block'; joybase.style.left = (q.x - joyzone.offsetLeft) + 'px';   // スティックの場所が右でも合うように
+  joybase.style.top = (FORCE ? q.y - joyzone.offsetTop : t.clientY - joyzone.getBoundingClientRect().top) + 'px';   // 縦の場所（2026-10-21：前はこの命令がコメントの中に入っていて動かず、スティックが画面の上の方に出ていた）
   document.getElementById('joyhint').style.display = 'none';
 }, { passive: false });
 joyzone.addEventListener('touchmove', e => {
