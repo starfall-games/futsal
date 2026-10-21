@@ -483,7 +483,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
     <button class="btn gray" id="giftbtn">🎁 コード入力</button>
   </div>
   <button class="btn gray small" id="menu-back" style="display:none">← もどる</button>
-  <div class="row"><button class="btn small gray" id="sebtn">🔊 効果音 ON</button><button class="btn small gray" id="bgmbtn">🎵 BGM ON</button><button class="btn small gray" id="modelbtn">👤 選手：リアル</button></div>
+  <div class="row"><button class="btn small gray" id="sebtn">🔊 効果音 ON</button><button class="btn small gray" id="bgmbtn">🎵 BGM ON</button><button class="btn small gray" id="voicebtn">🎙 実況 ON</button><button class="btn small gray" id="modelbtn">👤 選手：リアル</button></div>
   <div class="sub" id="realload"></div>
 </div></div>
 
@@ -603,6 +603,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
       <tr><th>⚪ スルー</th><td>味方が走りこむ先にボールを出すスルーパス</td></tr>
       <tr><th>🟢 ダッシュ</th><td>押している間ダッシュ（つかれると遅くなる）</td></tr>
       <tr><th>✨ ドリブルの技</th><td>ダッシュボタンをスライド。選手が走っている向きに対して 横へスライド＝ダブルタッチ（その向き）／ 前へ＝ルーレット ／ 後ろへ＝切り返し ／ 2回タップ＝シザース。近くの相手をだませる。相手をかわした直後のシュートは キーパーが反応しにくい</td></tr>
+      <tr><th>🌀 固有の技</th><td>ダッシュボタンを ななめ にスライド（↗ ↖ ↘ ↙）。固有の技を持っている選手だけ（持っていない選手は ふつうの技）。どの選手が持っているかは、マイチームで選手をタップすると見られる（操作と動画つき）</td></tr>
       <tr><th>🎯 シュートのコース</th><td>自動でキーパーから遠いすみをねらう（スティックで左右もえらべる）。どれだけすみへ飛ぶかは 決定力・体勢・ゴールまでの距離・けり方 で決まる。キーパーは 能力・タイミング・身長・腕と脚の長さ で届くはばが決まり、届かないコースならゴール</td></tr>
       <tr><th colspan="2">🛡 守備のとき（ボタンの役目が変わる）</th></tr>
       <tr><th>🟠 プレス</th><td>（スルーの場所）押し続けると、ボールを持つ相手に自動で近づく。近くの味方も寄せる</td></tr>
@@ -623,6 +624,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
       <tr><th>スルーパス</th><td>L</td></tr>
       <tr><th>ダッシュ</th><td>Shift</td></tr>
       <tr><th>ドリブルの技</th><td>B＋移動キー＝走っている向きに対して 横＝ダブルタッチ・前＝ルーレット・後ろ＝切り返し ／ Z＝シザース（X・C・V でも直接出せる）</td></tr>
+      <tr><th>固有の技</th><td>N（移動キーの向きへぬける）。固有の技を持っている選手だけ</td></tr>
       <tr><th>守備</th><td>J＝スライディングタックル ／ K を押し続ける＝プレス ／ E を押し続ける＝足をのばす構え ／ L＝選手切替 ／ Q を押し続ける＝GK飛び出し</td></tr>
       <tr><th>ワンツー</th><td>J でパスした直後に L</td></tr>
       <tr><th>一時停止</th><td>P か Esc</td></tr>
@@ -635,6 +637,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
       <tr><th>スルーパス</th><td>Y</td></tr>
       <tr><th>ダッシュ</th><td>RB か RT</td></tr>
       <tr><th>ドリブルの技</th><td>右スティックをはじく：走っている向きに対して 横＝ダブルタッチ ／ 前＝ルーレット ／ 後ろ＝切り返し ／ 右スティック押しこみ＝シザース</td></tr>
+      <tr><th>固有の技</th><td>左スティック押しこみ（L3）。固有の技を持っている選手だけ</td></tr>
       <tr><th>守備</th><td>A＝スライディングタックル ／ B を押し続ける＝プレス ／ LB を押し続ける＝足をのばす構え ／ Y＝選手切替 ／ LT を押し続ける＝GK飛び出し</td></tr>
       <tr><th>ワンツー</th><td>A でパスした直後に Y</td></tr>
       <tr><th>一時停止</th><td>START</td></tr>
@@ -799,6 +802,7 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
 <!-- 選手のメニュー（強化・売る） -->
 <div class="screen" id="sc-cardmenu"><div class="wrap">
   <div class="cards" id="cm-card"></div>
+  <div id="cm-feint"></div>
   <div class="label">🎒 アイテムを使って育てる</div><div class="cards" id="cm-items" style="justify-content:center"></div>
   <div class="row"><button class="btn green" id="cm-up" style="display:none"></button><button class="btn red" id="cm-sell" style="width:200px"></button></div>
   <div class="row"><button class="btn" id="cm-num" style="width:200px">👕 背番号を変える</button></div>
@@ -1198,7 +1202,7 @@ function myFix() {
 const usedUids = () => [...MY.gk, ...MY.sets.flat()];
 const cardBy = uid => MY.cards.find(c => c.uid === uid);
 function cardToData(c, key) { const st = { sp: cardStat(c, 'sp'), sh: cardStat(c, 'sh'), pa: cardStat(c, 'pa'), df: cardStat(c, 'df'), gk: cardStat(c, 'gk'), ph: cardStat(c, 'ph') };   // 監督の分は cardStat に入っている
-  return { key, name: c.name.split(' ')[0], full: c.name, num: c.num, pos: c.pos, apt: c.apt, skills: c.skills || [], style: c.style, ht: c.ht, arm: c.arm, leg: c.leg, st, card: c.uid }; }
+  return { key, name: c.name.split(' ')[0], full: c.name, num: c.num, pos: c.pos, apt: c.apt, skills: c.skills || [], style: c.style, ht: c.ht, arm: c.arm, leg: c.leg, st, card: c.uid, feint: cardFeint(c) }; }
 // ----- 監督（パックで手に入る。マイチームで1人えらぶ） -----
 const COACH_TYPES = {
   atk:   { n: '攻撃サッカー', e: '⚔️', st: 'sh', d: 'チームみんなの シュート' },
@@ -1357,7 +1361,7 @@ let GK_BASE = 1.12;   // 2026-10-13：止めそこねたボールをキーパー
 let GK_REACH = 1.4;   // キーパーの手が届く横はば（ダイブはもっと広い）
 let SHOT_RATE = 0.32;  // CPU がシュートを打つ回数の多さ
 
-const settings = Object.assign({ se: true, bgm: true, diff: 1, len: 3, team: 'tokyo', opp: 'osaka', autoSub: true }, store.get('futsal-settings', {}));
+const settings = Object.assign({ se: true, bgm: true, voice: true, diff: 1, len: 3, team: 'tokyo', opp: 'osaka', autoSub: true }, store.get('futsal-settings', {}));
 const saveSettings = () => store.set('futsal-settings', settings);
 
 // =====================================================================
@@ -1393,6 +1397,27 @@ const Sound = {
       ctx.decodeAudioData(u8.buffer, b => { this.clapBuf = b; }, () => {});
     } catch (e) {}
     this.bgmStart();
+    // 実況の声：iPhone は「さわったとき」に一度しゃべらせないと、あとでしゃべれないので、からっぽの声を一回だす
+    try { if (window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
+  },
+  // ===== 実況の声（ブラウザの読み上げ機能 speechSynthesis）2026-10-20 音担当 =====
+  // text の先頭が「!」なら大事な実況（ゴールなど）：しゃべっている途中でも止めて、こちらをしゃべる。
+  // ふつうの実況は、ほかの実況をしゃべっている間はとばす（しゃべりすぎないように）
+  setVoice(v) { settings.voice = v; saveSettings(); if (!v && window.speechSynthesis) speechSynthesis.cancel(); },
+  jaVoice() { // 日本語の声をさがす（なければ null）
+    const vs = speechSynthesis.getVoices();
+    return vs.find(v => /^ja/i.test(v.lang) && /Kyoko|Google|O-ren|Otoya/i.test(v.name)) || vs.find(v => /^ja/i.test(v.lang)) || null;
+  },
+  say(text) {
+    if (!settings.voice || !window.speechSynthesis || !text || document.hidden) return;
+    const big = text[0] === '!'; if (big) text = text.slice(1);
+    const voice = this.jaVoice();
+    if (!voice && speechSynthesis.getVoices().length) return; // 日本語の声が入っていない機械では、しゃべらない（英語の声で変に読むので）
+    if (big) speechSynthesis.cancel(); else if (speechSynthesis.speaking || speechSynthesis.pending) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP'; if (voice) u.voice = voice;
+    u.rate = big ? 1.2 : 1.1; u.pitch = big ? 1.2 : 1.05; u.volume = 1;   // 大事な所は少し速く・高く（もり上がる感じ）
+    speechSynthesis.speak(u);
   },
   setOn(v) { settings.se = v; saveSettings(); if (this.master) this.master.gain.value = v ? 0.7 : 0; },
   setBgm(v) { settings.bgm = v; saveSettings(); }, // BGM のオン・オフ（効果音とは別）
@@ -1530,6 +1555,7 @@ const Sound = {
       case 'roar': // ゴールの大歓声（長く・大きく）
         this.applause(6, 140, 0.24); this.crowdTo(0.34, 0.08); setTimeout(() => this.crowdTo(0.05, 1.6), 4200); break;
       case 'click': this.tone(880, 0.05, 'square', 0.06); break;
+      case 'say': this.say(arg); break;   // 実況（オンラインのゲストは、ホストから文字で受け取ってしゃべる）
     }
   }
 };
@@ -1537,6 +1563,12 @@ const Sound = {
 function sfx(type, arg = 0) {
   Sound.play(type, arg);
   if (NET.role === 'host' && S) { S.events.push([++S.evId, type, Math.round(arg * 100) / 100]); if (S.events.length > 12) S.events.shift(); }
+}
+// 実況：しゃべる＋ホストのときは相手にも文字を送る（先頭が「!」なら大事な実況）
+function say(text) {
+  if (!text) return;
+  Sound.say(text);
+  if (NET.role === 'host' && S) { S.events.push([++S.evId, 'say', text]); if (S.events.length > 12) S.events.shift(); }
 }
 
 // =====================================================================
@@ -2864,6 +2896,12 @@ function animateReal(p, dt) {
       const k = 1 - p.trick.t / p.trick.T, w = Math.sin(k * Math.PI * 2);
       m.bones.Spine.rotation.z += w * 0.45; m.bones.LeftUpLeg.rotation.z += Math.max(0, w) * 0.7; m.bones.RightUpLeg.rotation.z -= Math.max(0, -w) * 0.7;
     }
+    if (p.trick && p.trick.t > 0 && p.trick.type === 'elastico' && m.bones.Spine) { // 固有：エラシコ。外へ体をたおして足でボールを外へ → 内へ切りかえす
+      const k = 1 - p.trick.t / p.trick.T, s = -(p.trick.side.x * p.fz - p.trick.side.z * p.fx) >= 0 ? 1 : -1;   // 体の右か左か
+      const w = k < 0.45 ? Math.sin(k / 0.45 * Math.PI / 2) : -Math.sin((k - 0.45) / 0.55 * Math.PI);
+      m.bones.Spine.rotation.z += -s * w * 0.5;
+      const leg = s > 0 ? m.bones.RightUpLeg : m.bones.LeftUpLeg; if (leg) leg.rotation.z += s * Math.abs(w) * 0.6;
+    }
   }
   if (isGK && m.bones.LeftUpLeg) {
     if (p.savePoseT > 0) { p.savePoseT -= dt; realGKPose(p, m, p.savePose, 1 - p.savePoseT / 0.9); return; }
@@ -3064,6 +3102,7 @@ function resetPlayerState(p) { p.vel.set(0, 0, 0); p.locked = false; p.stun = 0;
 
 function startKickoff(t) {
   S.phase = 'setpiece';
+  if (S.clock === 0 && S.cfg.mode !== 'tutorial') say(S.half === 1 ? '!さあ、試合開始です！ ' + teams[0].def.name + '対' + teams[1].def.name + '！' : '!後半、キックオフです！');   // 実況（試合の最初と後半の最初だけ）
   Object.assign(ball, { owner: null, inNet: 0, receiver: null, isShot: false, saveDone: true }); ball.v.set(0, 0, 0); ball.p.set(0, BALL_R, 0); ball.gkLock = null;
   for (const tm of teams) {
     const d = tm.dir;
@@ -3314,6 +3353,7 @@ function scoreGoal(s) {
   if (!own) setTimeout(() => { if (S && S.phase === 'goal') showMsg('', CEL_NAMES[S.celType], 1.6); }, 1300);
   sfx('cheer'); sfx('roar'); S.crowdJump = 6; S.jumpFan = t.i; stageGoal(t.i);   // 大歓声。サポーターは長くよろこぶ（タオルや旗をふる）
   showMsg('GOAL!!', t.def.name + '　' + (own ? name : (k.full || k.name)) + (own ? '' : ' #' + k.num), 3);   // 決めた人はフルネーム
+  say(own ? '!オウンゴール！' : '!ゴーーール！ ' + k.name + '！');   // 実況（音担当 2026-10-20）
   if (navigator.vibrate && t.human === localHuman()) try { navigator.vibrate([60, 40, 120]); } catch (e) {}
   updateScoreboard(true);
 }
@@ -3321,6 +3361,11 @@ function endHalf() {
   S.clock = S.halfLen; S.deadNext = null; if (S.sp) { S.sp.taker.locked = false; S.sp = null; }
   if (S.half === 1) { S.phase = 'half'; S.phaseT = 3.5; sfx('whistle', 2); sfx('applause', 2.5); showMsg('HALF TIME', teams[0].def.short + ' ' + teams[0].score + ' - ' + teams[1].score + ' ' + teams[1].def.short, 3); }
   else { S.phase = 'end'; S.phaseT = 3.5; sfx('whistle', 3); sfx('applause', 4); showMsg('FULL TIME', teams[0].def.short + ' ' + teams[0].score + ' - ' + teams[1].score + ' ' + teams[1].def.short, 3.2); }
+  { // 実況：「前半終了！ 東京、2対1、大阪」・試合終了なら勝ったチームも（音担当 2026-10-20）
+    const a = teams[0], b = teams[1], sc = a.def.name + '、' + a.score + '対' + b.score + '、' + b.def.name;   // short は「TOK」など英語なので、読みやすい name を使う
+    if (S.half === 1) say('!前半終了！ ' + sc);
+    else say('!試合終了！ ' + sc + '。' + (a.score === b.score ? '引き分けです！' : (a.score > b.score ? a : b).def.name + 'の勝利です！'));
+  }
 }
 function secondHalf() {
   for (const t of teams) t.fouls = 0;   // チームファウルは前半・後半でリセット
@@ -3338,6 +3383,7 @@ function attachBall() {
   const o = ball.owner;
   if (S.phase === 'setpiece' && S.sp && S.sp.taker === o) { ball.p.set(S.sp.pos.x, BALL_R, S.sp.pos.z); ball.v.set(0, 0, 0); return; }   // セットプレー：ボールは置いた場所のまま（向きを変えてもラインの外に出ない）
   if (o.role === 'GK' && o.hold > 0 && inArea(o.pos, o.team)) { ball.p.set(o.pos.x + o.fx * 0.35, 1.0, o.pos.z + o.fz * 0.35); }
+  else if (o.trick && o.trick.sig && o.trick.t > 0 && feintBall(o)) return;   // 固有の技の間は、技に合わせてボールを動かす
   else { const r = 0.42 + Math.max(0, Math.sin(o.phase - 0.8)) * 0.22 * Math.min(1, o.vel.length() / 4); ball.p.set(o.pos.x + o.fx * r, BALL_R, o.pos.z + o.fz * r); } // 足の動きに合わせて、ちょんちょんと押し出す
   ball.v.copy(o.vel); ball.v.y = 0;
 }
@@ -3368,11 +3414,11 @@ function goalFrame(px, py, pz) { // ゴールラインをこえたか・ポス�
       if (az < GOAL_W - BALL_R * 0.6 && yc < GOAL_H - BALL_R * 0.6) { scoreGoal(s); return; }
       if (yc < GOAL_H + BALL_R && az > GOAL_W - BALL_R - 0.06 && az < GOAL_W + BALL_R + 0.06) { // ポスト！
         b.x = L - s * 0.03; ball.v.x = -ball.v.x * 0.55; ball.v.z += sgn(zc) * (az > GOAL_W ? 1 : -1) * Math.abs(ball.v.x) * 0.6;
-        ball.isShot = false; sfx('post'); return;
+        ball.isShot = false; sfx('post'); say('おしい！ ポストです！'); return;
       }
       if (az < GOAL_W && Math.abs(yc - GOAL_H) < BALL_R + 0.06) { // バー！
         b.x = L - s * 0.03; ball.v.x = -ball.v.x * 0.5; ball.v.y = yc > GOAL_H ? Math.abs(ball.v.y) + 1.5 : -Math.abs(ball.v.y) - 0.5;
-        ball.isShot = false; sfx('post'); return;
+        ball.isShot = false; sfx('post'); say('おしい！ クロスバー！'); return;
       }
     }
   }
@@ -3674,7 +3720,7 @@ function slideUpdate(p, dt) { // すべっている間
         if (p.team.human == null) ch *= p.team.ai.tackle; else ch += 0.1;
         if (has(p, 'tackle')) ch *= 1.15; if (o && has(o, 'dribble')) ch *= 0.82; if (behind) ch *= 0.6;
         if (o) ch += ((p.st.ph ?? 70) - (o.st.ph ?? 70)) / 150;                 // 体の強い方が勝ちやすい
-        if (o && o.trick && o.trick.t > 0) ch *= o.trick.type === 'roulette' ? 0.3 : 0.6;   // 技の間は取られにくい
+        if (o && o.trick && o.trick.t > 0) ch *= o.trick.type === 'roulette' || o.trick.sig ? 0.3 : 0.6;   // 技の間は取られにくい（固有の技も）
         if (o && o.style === 'post' && behind) ch -= 0.08;                      // 張るピヴォは背中でボールを守る
         ch = clamp(ch, 0.15, 0.92);
       }
@@ -3709,6 +3755,8 @@ function commitFoul(off, vic, behind) {
   if (card === 'yellow') msg = `🟨 イエローカード ${off.name}（${t.def.short}）`;
   if (card === 'red') msg = `🟥 レッドカード！ ${off.name} 退場（${t.def.short}）`;
   const inPA = inArea(pos, t);
+  // 実況：カード・PK（音担当 2026-10-20）
+  say(card === 'red' ? '!レッドカード！ ' + off.name + '、退場です！' : card === 'yellow' ? 'イエローカードです。' + off.name : inPA ? '!ペナルティキックです！' : t.fouls >= 6 ? '!第2PKです！' : '');
   if (inPA) { S.deadNext = () => startPenalty(v, 6); showMsg('PK!', msg, 2.4); }
   else if (t.fouls >= 6) { S.deadNext = () => startPenalty(v, 10); showMsg('第2PK!', msg + '（チームファウル6つめから）', 2.6); }   // 累積ファウル
   else { S.deadNext = () => startSetPiece('fk', v, V3(clamp(pos.x, -HALF_L + 0.6, HALF_L - 0.6), 0, clamp(pos.z, -HALF_W + 0.4, HALF_W - 0.4))); showMsg('', msg, 2.2); }
@@ -4066,6 +4114,7 @@ function startPenalty(v, dist) { // PK（6m）・第2PK（10m）
 }
 // キーパーが届くはば（m）：能力・身長・腕・脚の長さ・シュートのタイミングで決まる
 let MISS_K = 1.7;    // 枠の外へ外れる多さ（2026-10-15：5分ハーフで両チーム合計 平均6点くらいに）
+let GK_CROSS = 0.4, GK_CROSS_READ = 0.5;   // クロスのとき、キーパーがボールの落ちる所をどれだけ先読みするか（0＝しない・1＝落ちる所）・クロスを正しく読める割合（2026-10-20：ヘディングが36%も決まっていた → 読める割合 0.45で24%・0.55で12% → 0.5 で2割くらい。読めないときは前と同じく、クロスの通り道＝柱のそばへ動く）
 let GK_SCALE = 1.38;   // 全体の調整用（2026-10-15：CPU どうし5分ハーフで両チーム合計 平均6点くらい・シュートの約6%）
 function gkReach(g, y, sh) {
   const d = g.data || {}, ht = (d.ht || 183) / 100, arm = d.arm || 1, leg = d.leg || 1;
@@ -4104,6 +4153,7 @@ function fxUpdate(dt) {
 }
 function saveFX(g, big, text) {
   sfx('save', big ? 1 : 0);
+  if (big || Math.random() < 0.5) say(big ? 'スーパーセーブ！ ' + g.name + '！' : 'ナイスセーブ！');   // 実況（ふつうのセーブは半分だけ。しゃべりすぎないように）
   S.hitStop = big ? 0.2 : 0.1; S.shake = big ? 0.4 : 0.22;   // 一瞬止める・ゆらす
   fxBurst(ball.p, big ? 22 : 12, ['#ffffff', '#ffe066', '#9fe3ff']);
   g.saveFlash = 0.5; FPV.focus = ball.p.clone(); S.crowdJump = big ? 1.8 : 0.9; S.jumpFan = g.team.i;
@@ -4418,7 +4468,52 @@ function updatePlays(dt) {
 // ----- ドリブルの技 -----
 const TRICK_JP = { scissors: 'シザース', double: 'ダブルタッチ', roulette: 'ルーレット', cut: '切り返し' };
 const TRICK_T = { scissors: 0.45, double: 0.28, roulette: 0.6, cut: 0.32 };
+// ----- 固有のフェイント（その選手だけの技。🌀 固有スキル担当） -----
+// 操作：ダッシュボタンを ななめ にスライド ／ キーボード N（移動キーの向き） ／ コントローラー 左スティック押しこみ（L3）
+// ふつうの技より だましやすいけど、1回使ったら FEINT_CD 秒は使えない（そのあいだは、ふつうの技になる）
+const FEINTS = {
+  elastico: { n: 'エラシコ', e: '🌪', T: 0.42, d: '外へ出すふりをして、ゴムみたいに一瞬で内側へ切りかえす。目の前の相手が長めに動けなくなる',
+    how: ['ボールを持っているときに、ダッシュボタンを <b>ななめ</b> にスライド（↗ ↖ ↘ ↙）', 'スライドした ななめの側へぬける（いったん反対側へ出すふりをする）', 'キーボード：<b>N</b>（移動キーの向きへぬける）', 'コントローラー：<b>左スティック押しこみ（L3）</b>', '1回使ったら 6秒は使えない（そのあいだは ふつうの技が出る）'],
+    video: 'feint/elastico.mp4' },
+};
+const FEINT_LEGEND = { pereira: 'elastico' };   // レジェンドの固有の技（LEGENDS の中はさわらない）
+const FEINT_CD = 6;
+const cardFeint = c => (c && (c.feint || (c.legend && FEINT_LEGEND[c.legend]))) || null;
+function doFeint(p, fk, dir) {
+  if ((p.trick && p.trick.t > 0) || ball.owner !== p || p.role === 'GK') return;
+  const F = FEINTS[fk], f = { x: p.fx, z: p.fz };
+  // ぬける側（s）：スライドの向きが体の右か左か。向きがないときはランダム
+  const lat = dir ? -f.z * dir.x + f.x * dir.z : 0, s = Math.abs(lat) > 0.05 ? sgn(lat) : (Math.random() < 0.5 ? 1 : -1);
+  const side = { x: -f.z * s, z: f.x * s };
+  let d = { x: f.x * 0.75 + side.x * 0.66, z: f.z * 0.75 + side.z * 0.66 }; const l = Math.hypot(d.x, d.z) || 1; d = { x: d.x / l, z: d.z / l };
+  p.trick = { type: fk, sig: true, t: F.T, T: F.T, d, f, side, a0: Math.atan2(p.fz, p.fx), spinDir: 1 };
+  p.sigAt = S.time;
+  for (const o of p.team.opp.players) { // ふつうの技より だましやすく、長く止める
+    if (o.role === 'GK' || o.off) continue;
+    const od = d2(o.pos, p.pos); if (od > 2.8) continue;
+    const ch = 0.55 + (p.st.sp - o.st.df) / 100 + (has(p, 'dribble') ? 0.15 : 0) - (od > 1.9 ? 0.15 : 0);
+    if (Math.random() < ch) { o.stun = Math.max(o.stun, 0.55); o.fooled = 0.8; }
+  }
+  sfx('touch');
+  if (p.team.human != null && p.team.human === localHuman()) localMsg('', '🌀 ' + F.n + '！', 1.0);
+}
+function feintBall(o) { // 固有の技の間のボールの場所（足もとから少し横へずらす）
+  const k = o.trick, prog = 1 - k.t / k.T;
+  if (k.type === 'elastico') { // 外へ押し出して（ふり）→ 一瞬で内側へ引きもどす
+    const q = (prog - 0.45) / 0.55;   // 切りかえしてからの進み（0〜1）
+    const out = prog < 0.45 ? -0.34 * Math.sin(prog / 0.45 * Math.PI / 2) : q < 0.3 ? -0.34 + 0.64 * (q / 0.3) : 0.3 * (1 - (q - 0.3) / 0.7);
+    const fw = 0.42 - (prog < 0.45 ? 0.1 * prog / 0.45 : 0);
+    ball.p.set(o.pos.x + o.fx * fw + k.side.x * out, BALL_R, o.pos.z + o.fz * fw + k.side.z * out); ball.v.copy(o.vel); ball.v.y = 0; return true;
+  }
+  return false;
+}
 function doTrick(p, type, dir) {
+  if (type === 'sig') { // 固有の技：持っていない・まだ使えないときは、ふつうの技（スライドの向きで決まる）
+    const fk = p.data && p.data.feint;
+    if (fk && FEINTS[fk] && !(S.time - (p.sigAt ?? -99) < FEINT_CD)) return doFeint(p, fk, dir);
+    if (!dir) type = 'scissors';
+    else { const l = Math.hypot(dir.x, dir.z) || 1, dot = (dir.x * p.fx + dir.z * p.fz) / l; type = dot > 0.6 ? 'roulette' : dot < -0.6 ? 'cut' : 'double'; }
+  }
   if (!TRICK_T[type] || (p.trick && p.trick.t > 0) || ball.owner !== p || p.role === 'GK') return;
   const f = { x: p.fx, z: p.fz };
   let d = dir;
@@ -4445,6 +4540,11 @@ function trickMove(p, dt) { // 技の間の動き
   else if (k.type === 'double') v = 7.5;              // 真横へすばやく
   else if (k.type === 'roulette') v = 3.2;            // くるっと回りながら
   else if (k.type === 'cut') v = prog < 0.3 ? 0 : 5.5; // 止まってから反対へ
+  if (k.type === 'elastico') { // 固有：エラシコ。少し外へふくらんで（ふり）→ 内側ななめ前へ一気に
+    if (prog < 0.45) p.vel.set(k.f.x * 2.2 - k.side.x * 1.3, 0, k.f.z * 2.2 - k.side.z * 1.3);
+    else { p.vel.set(d.x * 8.2, 0, d.z * 8.2); p.fx = d.x; p.fz = d.z; }
+    return;
+  }
   p.vel.set(d.x * v, 0, d.z * v);
   if (k.type === 'roulette') { const a = k.a0 + k.spinDir * prog * Math.PI * 2; p.fx = Math.cos(a); p.fz = Math.sin(a); }   // 体をくるっと1回転
   else if (k.type === 'cut' && prog > 0.3) { p.fx = d.x; p.fz = d.z; }
@@ -4748,6 +4848,7 @@ function aiCarrier(p, dt) { // CPU がボールを持っているとき
     if (sg && sg !== p && Math.abs(p.pos.z) > 2 && toGoal < 13 && d2(sg.pos, segTarget(sg) || sg.pos) < 1.6 && !laneBlocked(p, sg) && Math.random() < 0.4) { doPass(p, null, sg, false, { power: 0.35 }); return; }
     if (pl && pl.type === 'diag' && pl.p !== p && Math.random() < 0.55 && (pl.p.pos.x - p.pos.x) * d > 1.5) { doPass(p, null, pl.p, false, { through: true, power: rand(0.2, 0.5) }); return; }
     if (pres < 1.9 && !t.ai.passive && Math.random() < (has(p, 'dribble') ? 0.35 : 0.18) * (p.style === 'wide' ? 1.5 : 1)) {   // 相手が前に来たら技でかわす
+      if (p.data && p.data.feint && !(S.time - (p.sigAt ?? -99) < FEINT_CD) && Math.random() < 0.6) { doTrick(p, 'sig', null); return; }   // 固有の技
       const ks = ['scissors', 'double', 'roulette', 'cut']; doTrick(p, ks[(Math.random() * ks.length) | 0], null); return;
     }
     if (!t.ai.passive && Math.abs(p.pos.z) > 4.5 && toGoal < 12 && Math.random() < 0.22) { // サイドから、ゴール前の味方の頭へ浮き球のクロス
@@ -4794,7 +4895,10 @@ function aiGK(p, dt) { // キーパー
   }
   let tg = null, fast = false;
   const bv = ball.v, bp = ball.p;
-  if (!ball.owner && ph === 'play' && bv.x * d < -3 && ball.lastTouch !== t) { // シュートが来る！
+  const crossBall = !ball.owner && !ball.isShot && bp.y > 0.9;   // 浮いているクロス（シュートではない）
+  if (crossBall && p.crossId !== ball.passId) { p.crossId = ball.passId; p.crossOk = Math.random() < GK_CROSS_READ; }   // 1本のクロスごとに、読めるかを決める
+  const readCross = crossBall && GK_CROSS > 0 && p.crossOk;
+  if (!ball.owner && ph === 'play' && bv.x * d < -3 && ball.lastTouch !== t && !readCross) { // シュートが来る！（クロスを読めたときは、シュートとまちがえず、下の「先読み」で立つ）
     const tt = (p.pos.x - bp.x) / bv.x;
     if (tt > 0 && tt < 1.6) {
       const pz = bp.z + bv.z * tt;
@@ -4815,7 +4919,12 @@ function aiGK(p, dt) { // キーパー
     const sw = p.style === 'sweeper';   // 飛び出すキーパー：エリアの少し外のボールも取りにいき、前に立つ
     if (!ball.owner && ph === 'play' && !locked && (inArea(bp, t) || (sw && Math.hypot(bp.x - gx, bp.z) < 9)) && spd < (sw ? 13 : 10) && d2(p.pos, bp) < oppNear * (sw ? 1.0 : 0.9) + 0.5) { tg = { x: bp.x, z: bp.z }; fast = true; }
     else { // ボールとゴールを結ぶ線の上に立つ
-      const ang = Math.atan2(bp.z, (bp.x - gx) * d), dist = Math.hypot(bp.x - gx, bp.z);
+      let rx = bp.x, rz = bp.z;
+      if (readCross) { // クロス：ボールが頭の高さまで落ちてくる所を先読みして、そこから見た線の上に立つ（2026-10-20：前は今のボールの所を見て柱のそばに残り、まん中のヘディングに届かなかった）
+        const disc = bv.y * bv.y + 2 * GRAV * (bp.y - 1.6), tt = disc > 0 ? clamp((bv.y + Math.sqrt(disc)) / GRAV, 0, 1.5) : 0;
+        rx += bv.x * tt * GK_CROSS; rz += bv.z * tt * GK_CROSS;
+      }
+      const ang = Math.atan2(rz, Math.max(0.3, (rx - gx) * d)), dist = Math.hypot(rx - gx, rz);
       let r = sw ? clamp(dist * 0.14, 0.8, 3.0) : clamp(dist * 0.1, 0.6, 2.0);
       const oc = ball.owner && ball.owner.team !== t ? ball.owner : null;
       if (oc && dist < 8 && Math.abs(ang) < 0.9) r = clamp(dist * 0.32, 1.2, 2.5);   // 1対1：前に出て、シュートの角度をせまくする
@@ -5079,7 +5188,7 @@ function integratePlayers(dt) {
       }
     }
     if (p.role === 'GK' && p.team.ppOn) p.gkOut = true;   // パワープレーで上がったキーパーは、終わったら走ってもどる
-    else if (p.role === 'GK') { // キーパーはふだんゴールの近く。ボールを運んで外へ出たときは、自分で走ってもどる
+    else if (p.role === 'GK' && !(p.team.lockP === p && p.team.human != null)) { // キーパーはふだんゴールの近く。ボールを運んで外へ出たときは、自分で走ってもどる（なりきりのゴレイロは自由に上がれる＝攻撃参加。新モード担当 2026-10-20）
       const u = p.pos.x * p.team.dir, lim = p.team.gkRush ? -3 : -11;
       if (ball.owner === p) { if (u > lim) p.gkOut = true; }
       else if (p.gkOut && u < lim) p.gkOut = false;
@@ -5175,7 +5284,7 @@ function step(dt) {
 const keys = {};
 const KEYS = { up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   pass: ['KeyJ', 'Space'], lob: ['KeyU'], shoot: ['KeyK'], chip: ['KeyI'], toe: ['KeyO'], dash: ['ShiftLeft', 'ShiftRight'], sw: ['KeyL'], gk: ['KeyQ'], leg: ['KeyE'],
-  trick: ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB'] };
+  trick: ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN'] };
 const GAME_KEYS = new Set(Object.values(KEYS).flat());
 // 自分の入力（画面の向き）。pc/sc/wc はボタンを押した回数（押したしゅんかんを見のがさないため）
 // pass/shoot は押しているか、pv はパスの種類（'' か 'lob'）、sv はシュートの種類（'' / 'chip' / 'toe'）
@@ -5194,6 +5303,7 @@ addEventListener('keydown', e => {
     if (KEYS.sw.includes(e.code)) IN.wc++;
     if (e.code === 'KeyZ') trickIn('scissors');   // ドリブルの技：Z シザース / X ダブルタッチ / C ルーレット / V 切り返し（スティックの向き）。B＝移動キーの向きで自動（進行方向に対して 横＝ダブルタッチ・前＝ルーレット・後ろ＝切り返し）
     if (e.code === 'KeyB') trickIn('auto', IN.x, IN.y);
+    if (e.code === 'KeyN') trickIn('sig', IN.x, IN.y);   // 固有の技（移動キーの向きへぬける）
     if (e.code === 'KeyX') trickIn('double', IN.x, IN.y);
     if (e.code === 'KeyC') trickIn('roulette', IN.x, IN.y);
     if (e.code === 'KeyV') trickIn('cut', IN.x, IN.y);
@@ -5225,14 +5335,16 @@ joyzone.addEventListener('touchmove', e => {
 const joyEnd = e => { for (const t of e.changedTouches) if (t.identifier === touch.id) { touch.id = null; touch.jx = touch.jy = 0; joybase.style.display = 'none'; joyknob.style.transform = ''; } };
 joyzone.addEventListener('touchend', joyEnd); joyzone.addEventListener('touchcancel', joyEnd);
 // ボタン：押す・はなす・上下にスライド（onSwipe に 'up' / 'down' / '' がくる）
-function bindTouchBtn(id, onDown, onUp, onSwipe) {
+function bindTouchBtn(id, onDown, onUp, onSwipe, diag) {   // diag＝ななめのスライドも見分ける（ur・ul・dr・dl）
   const el = document.getElementById(id); let y0 = 0, x0 = 0, tid = null;
   el.addEventListener('touchstart', e => { e.preventDefault(); if (document.body.classList.contains('layedit')) return; const t = e.changedTouches[0], q = PT(t); tid = t.identifier; y0 = q.y; x0 = q.x; el.classList.add('down'); el.classList.remove('up', 'dn'); onDown(); }, { passive: false });
   el.addEventListener('touchmove', e => {
     e.preventDefault(); if (!onSwipe) return;
     for (const t of e.changedTouches) if (t.identifier === tid) {
       const q = PT(t), dy = q.y - y0, dx = q.x - x0;
-      const v = Math.abs(dx) > Math.abs(dy) + 6 ? (dx < -26 ? 'left' : dx > 26 ? 'right' : '') : (dy < -22 ? 'up' : dy > 22 ? 'down' : '');
+      const r = Math.abs(dy) / (Math.abs(dx) || 0.01);
+      const v = diag && Math.abs(dx) > 18 && Math.abs(dy) > 18 && r > 0.45 && r < 2.2 ? (dy < 0 ? 'u' : 'd') + (dx < 0 ? 'l' : 'r')   // ななめ
+        : Math.abs(dx) > Math.abs(dy) + 6 ? (dx < -26 ? 'left' : dx > 26 ? 'right' : '') : (dy < -22 ? 'up' : dy > 22 ? 'down' : '');
       el.classList.toggle('up', v === 'up'); el.classList.toggle('dn', v === 'down'); onSwipe(v);
     }
   }, { passive: false });
@@ -5305,7 +5417,8 @@ let dashTap = 0, dashTrick = false;
 bindTouchBtn('tb-shoot', () => { touch.dash = true; dashTrick = false; const now = performance.now(); if (!DEF() && now - dashTap < 300) trickIn('scissors'); dashTap = now; },
   () => { touch.dash = false; },
   v => { if (DEF() || !v || dashTrick) return; dashTrick = true;   // 右下の大きいボタン：ダッシュ。ボールを持っているとき スライドで技（左右＝ダブルタッチ、上＝ルーレット、下＝切り返し）
-    const sv = { left: [-1, 0], right: [1, 0], up: [0, 1], down: [0, -1] }[v]; trickIn('auto', sv[0], sv[1]); });   // スライドした向き（画面）→ 進行方向に対して 横＝ダブルタッチ・前＝ルーレット・後ろ＝切り返し
+    const sv = { left: [-1, 0], right: [1, 0], up: [0, 1], down: [0, -1], ur: [0.7, 0.7], ul: [-0.7, 0.7], dr: [0.7, -0.7], dl: [-0.7, -0.7] }[v];
+    trickIn(v.length === 2 ? 'sig' : 'auto', sv[0], sv[1]); }, true);   // ななめ＝固有の技（持っていない選手は、ふつうの技）   // スライドした向き（画面）→ 進行方向に対して 横＝ダブルタッチ・前＝ルーレット・後ろ＝切り返し
 bindTouchBtn('tb-dash', () => { if (DEF()) { IN.pc++; return; } IN.sc++; IN.sv = ''; touch.shoot = true; }, () => touch.shoot = false, v => { if (!DEF()) IN.sv = v === 'up' ? 'chip' : v === 'down' ? 'toe' : ''; }); // 攻撃＝シュート、守備＝タックル
 bindTouchBtn('tb-gk', () => { touch.gk = true; }, () => touch.gk = false);   // GK飛び出し（守備のときだけ出る）
 bindTouchBtn('tb-sw', () => { if (document.body.classList.contains('gkmode')) { IN.wc++; return; } if (DEF()) { touch.press = true; return; } IN.wc++; }, () => { touch.press = false; touch.leg = false; },
@@ -5336,7 +5449,7 @@ function sampleInput() {
     // 右スティックをはじく＝ドリブルの技（左右＝ダブルタッチ、上＝ルーレット、下＝切り返し）、R3＝シザース
     const rx = pad.axes[2] || 0, ry = pad.axes[3] || 0, flick = Math.hypot(rx, ry) > 0.8;
     if (flick && !padPrev.rs) trickIn('auto', rx, -ry);   // はじいた向き → 進行方向に対して 横＝ダブルタッチ・前＝ルーレット・後ろ＝切り返し
-    padPrev.rs = flick; if (b(11) && !padPrev.r3) trickIn('scissors'); padPrev.r3 = b(11); padLeg = b(4);
+    padPrev.rs = flick; if (b(11) && !padPrev.r3) trickIn('scissors'); padPrev.r3 = b(11); if (b(10) && !padPrev.l3) trickIn('sig', ax, -ay); padPrev.l3 = b(10); padLeg = b(4);   // L3＝固有の技（左スティックの向きへぬける）
     shoot = shoot || b(1); pass = pass || b(0) || b(2); dash = dash || b(5) || b(7); padGK = b(6);
   }
   if (touch.id !== null) { x = touch.jx; y = touch.jy; }
@@ -6987,10 +7100,30 @@ function openPick(kind, a, b) { // そのわくに入れられる選手の一覧
 document.getElementById('pick-back').onclick = () => { Sound.play('click'); openMyTeam(); };
 const SELL = [0, 20, 50, 150, 400, 1500];
 let cmUid = 0;
+function feintPanel(c) { // 詳細画面：固有の技（名前・せつめい・操作方法・実際の動画）
+  const el = document.getElementById('cm-feint'), fk = cardFeint(c), F = fk && FEINTS[fk];
+  if (!F) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="margin:8px auto;max-width:420px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(124,58,237,.35),rgba(14,165,233,.25));border:1px solid rgba(196,181,253,.7);text-align:left">
+    <div style="font-weight:900;font-size:17px;color:#e9d5ff">🌀 固有の技：${F.e} ${F.n}</div>
+    <div style="margin:4px 0 6px;font-size:13px">${F.d}</div>
+    <div style="font-weight:700;font-size:13px;color:#ffe680">🎮 操作方法</div>
+    <ul style="margin:2px 0 8px 18px;padding:0;font-size:13px;line-height:1.5">${F.how.map(s => `<li>${s}</li>`).join('')}</ul>
+    <button class="btn small" id="cm-fvbtn" style="width:auto;padding:6px 14px">▶ 実際の動画を見る</button>
+    <div id="cm-fv" style="display:none;margin-top:8px"></div></div>`;
+  document.getElementById('cm-fvbtn').onclick = () => {
+    Sound.play('click'); const box = document.getElementById('cm-fv'), b = document.getElementById('cm-fvbtn');
+    if (box.style.display === 'none') {
+      box.style.display = ''; b.textContent = '■ 動画をとじる';
+      box.innerHTML = `<video src="${F.video}" autoplay muted loop playsinline controls style="width:100%;border-radius:10px;background:#000"></video>`;
+      const v = box.querySelector('video'); v.onerror = () => { box.innerHTML = '<div class="sub">動画を読みこめなかった（ネットにつながっているか見てね）</div>'; };
+    } else { box.style.display = 'none'; box.innerHTML = ''; b.textContent = '▶ 実際の動画を見る'; }
+  };
+}
 function openCardMenu(uid) {
   cmUid = uid; const c = cardBy(uid); if (!c) return;
   const used = usedUids().includes(uid), cost = 100 * (c.lv + 1);
   document.getElementById('cm-card').innerHTML = cardHTML(c);
+  feintPanel(c);
   const sell = document.getElementById('cm-sell');
   const it = document.getElementById('cm-items'), cap = ADD_CAP[c.rar] || 8;
   it.innerHTML = itemKeysFor(c).map(k => `<button class="btn small ${(MY.items[k] || 0) > 0 ? '' : 'gray'}" data-k="${k}" style="width:auto;padding:6px 10px">${ITEMS[k].e} ${ITEMS[k].n}<small>${ITEMS[k].d}・のこり ${MY.items[k] || 0}</small></button>`).join('')
@@ -7147,6 +7280,11 @@ const bgmBtn = document.getElementById('bgmbtn');
 const bgmLabel = () => bgmBtn.textContent = settings.bgm ? '🎵 BGM ON' : '🎵 BGM OFF';
 bgmBtn.onclick = () => { Sound.init(); Sound.setBgm(!settings.bgm); bgmLabel(); Sound.play('click'); };
 bgmLabel();
+// 実況のボタン（ブラウザの読み上げ機能でしゃべる）2026-10-20 音担当
+const voiceBtn = document.getElementById('voicebtn');
+const voiceLabel = () => voiceBtn.textContent = settings.voice ? '🎙 実況 ON' : '🎙 実況 OFF';
+voiceBtn.onclick = () => { Sound.init(); Sound.setVoice(!settings.voice); voiceLabel(); Sound.play('click'); if (settings.voice) Sound.say('!実況、オンです！'); };
+voiceLabel();
 // 最初にさわったときに音を使えるようにする（ブラウザのルール）
 addEventListener('pointerdown', () => Sound.init(), { once: true });
 
