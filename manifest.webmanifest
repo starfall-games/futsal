@@ -1,10 +1,12 @@
 {
+  "id": "/futsal/",
   "name": "FUTSAL STRIKE",
   "short_name": "FUTSAL",
   "description": "無料で遊べる3Dフットサルゲーム",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
   "orientation": "landscape",
   "background_color": "#0a0f1e",
   "theme_color": "#0a0f1e",
