@@ -2442,7 +2442,7 @@ function buildPlayerMesh(kit, num, isGK, skinC) {
   const G = () => new THREE.Group();
   const add = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; parent.add(m); return m; };
   const skin = lam(skinC ?? SKINS[(Math.random() * SKINS.length) | 0]);
-  const shirt = lam(isGK ? kit.gk : kit.shirt), shorts = lam(isGK ? 0x222222 : kit.shorts), sock = lam(isGK ? kit.gk : kit.shirt);
+  const shirt = lam(isGK ? kit.gk : kit.shirt), shorts = lam(isGK ? 0x222222 : kit.shorts), sock = lam(isGK ? kit.gk : (kit.sock || kit.shirt));
   const shoeMat = lam([0x111111, 0xf2f2f2, 0xff5a1f, 0x1fb6ff][(Math.random() * 4) | 0]);
   const outer = G();                 // 位置と向き
   outer.scale.setScalar(SIMPLE_SCALE); // 背を約170cmに
@@ -2533,7 +2533,7 @@ function makeRoster(def) {
 const has = (p, sk) => !!(p.skills && p.skills.includes(sk));
 function effStats(d, role) { // 向いていないポジションだと能力が下がる
   const m = role === 'GK' ? 1 : APT_MULT[d.apt ? d.apt[posKey(role)] ?? 3 : 3], st = d.st;
-  return { sp: st.sp * m, sh: st.sh * m, pa: st.pa * m, df: st.df * m, gk: st.gk, ph: st.ph ?? 70 };
+  return { sp: st.sp * m, sh: st.sh * m, pa: st.pa * m, df: st.df * m, gk: st.gk ?? 30, ph: st.ph ?? 70 };   // gk の数字がないフィールドの選手（パワープレーでキーパーのシャツ）は 30
 }
 // なりきり：自分の選手 lock.data（または名簿の lock.key の選手）を、ポジションのわくに入れる。3つのセット全部に同じ人を入れるので交代しない
 function lockInsert(t, lock) {
@@ -2555,7 +2555,8 @@ function bindData(p, d) { // コートのわく p に 選手 d を入れる（�
   p.style = STYLE_FAM[posKey(p.role)].includes(d.style) ? d.style : pickStyle(posKey(p.role), { ...d.st, ph: d.st.ph ?? 70 }); // ちがうポジションに入れたら、そこでの動き方
   p.stamina = Math.max(p.stamina ?? 100, 70);
   if (p.mesh) scene.remove(p.mesh.outer);
-  p.mesh = buildPlayerMesh(p.team.kit, p.num, p.role === 'GK', d.skin);
+  const gkShirt = p.role === 'GK' && d.pos !== 'GK' && !(p.team.squad && p.team.squad.gk.includes(d));   // パワープレー：フィールドの選手がキーパーのシャツだけを着て入る（ズボンはフィールドのまま）（2026-11-09）
+  p.mesh = buildPlayerMesh(gkShirt ? { ...p.team.kit, shirt: p.team.kit.gk, sock: p.team.kit.shirt } : p.team.kit, p.num, p.role === 'GK' && !gkShirt, d.skin);
   p.mesh.outer.visible = !p.off;
 }
 const allData = t => [...t.squad.gk, ...t.squad.sets.flat()];
@@ -2867,7 +2868,7 @@ function buildRealMesh(kit, num, isGK, skinC) {
   // 色：0はだ 1シャツ 2パンツ 3ソックス 4スパイク 5手 6前うで
   const skin = skinC ?? SKINS[(Math.random() * SKINS.length) | 0], shoe = ['#111111', '#f2f2f2', '#ff5a1f', '#1fb6ff', '#ffd400'][(Math.random() * 5) | 0];
   const pal = isGK ? [skin, kit.gk, '#222222', kit.gk, shoe, skin, kit.gk]               // キーパー：長そで・素手
-                   : [skin, kit.shirt, kit.shorts, kit.shirt, shoe, skin, skin];
+                   : [skin, kit.shirt, kit.shorts, kit.sock || kit.shirt, shoe, skin, skin];   // kit.sock：くつ下の色（パワープレーでシャツだけ変えるとき。ふだんはシャツの色）
   const cloths = [], shirts = []; let m_fp = null;
   root.traverse(o => {
     if (!o.isSkinnedMesh) return;
@@ -2890,7 +2891,7 @@ function buildRealMesh(kit, num, isGK, skinC) {
     m_fp = { mesh: o, full: of.bodyIndex, fp: fpIndex(src, o.skeleton, of.bodyIndex) };   // 一人称用：前うで・手・足だけ
     const sm = outfitMesh(of.shirt, o.skeleton, o.bindMatrix, isGK ? kit.gk : kit.shirt, trimC); shirts.push(sm); o.parent.add(sm);
     const shm = outfitMesh(of.shorts, o.skeleton, o.bindMatrix, isGK ? '#222222' : kit.shorts, isGK ? '#444444' : kit.shirt); shirts.push(shm); o.parent.add(shm);   // パンツも一人称ではかくす
-    o.parent.add(outfitMesh(of.socks, o.skeleton, o.bindMatrix, isGK ? kit.gk : kit.shirt, isGK ? '#ffffff' : kit.shorts));
+    o.parent.add(outfitMesh(of.socks, o.skeleton, o.bindMatrix, isGK ? kit.gk : (kit.sock || kit.shirt), isGK ? '#ffffff' : kit.shorts));
   }
   outer.add(root);
   // 背番号（背中の骨にくっつける）
@@ -2935,13 +2936,11 @@ function animateReal(p, dt) {
     } else { realPlay(m, k, { once: true, start: REAL.start[k] || 0, fade: 0.08, ts: 1.25, restart: true }); m.lockT = 0.55; m.spinKey = null; }
   }
   if (!(p.kickAnim > 0)) m.kickOn = false;
-  if (p.tackleAnim > 0 && !m.tackOn) { m.tackOn = true; realPlay(m, 'tackle', { once: true, start: REAL.start.tackle || 0, fade: 0.08, restart: true }); m.lockT = 0.9; }
+  if (p.tackleAnim > 0 && !m.tackOn) { m.tackOn = true; realPlay(m, 'idle', { fade: 0.08, restart: true }); m.lockT = 0.95; }   // スライディングは realSlidePose で骨を動かす（2026-11-09）
   if (!(p.tackleAnim > 0)) m.tackOn = false;
   if (isGK && p.dive > 0 && !m.diveOn) {
     m.diveOn = true;
-    const want = Math.sign(-p.fx * p.diveDir) || 1;   // 体から見て左右どちらへ飛ぶか
-    const k = REAL.side.dive === want ? 'dive' : REAL.side.dive2 === want ? 'dive2' : 'dive';
-    realPlay(m, k, { once: true, start: REAL.start[k] || 0, fade: 0.06, ts: 1.2, restart: true }); m.lockT = 1.0;
+    realPlay(m, 'gkIdle', { fade: 0.06, restart: true }); m.lockT = 1.0;   // 横っとびは realDivePose で骨を動かす（前の動きのデータはゴールの方を向いてしまっていた）
   }
   if (!(p.dive > 0)) m.diveOn = false;
   m.lockT -= dt;
@@ -2969,6 +2968,19 @@ function animateReal(p, dt) {
   // けるとき、体がひねりきれなかった分を背骨でひねる
   if (p.kickAnim > 0 && p.kickTwistAng && m.bones.Spine) { const k = Math.sin(clamp(1 - p.kickAnim / 0.4, 0, 1) * Math.PI); m.bones.Spine.rotateY(p.kickTwistAng * 0.45 * k); }
   m.root.position.y = 0;
+  // キーパーの横っとび・スライディング（2026-11-09 選手ビジュアル担当：骨を計算して作る）
+  if (m.poseRoll) { m.root.rotation.z = 0; m.root.position.x = 0; m.poseRoll = false; }
+  if (isGK && m.bones.LeftArm && m.bones.LeftUpLeg) {
+    if (p.dive > 0) { if (!m.diving) { m.diving = true; m.diveT = 0; m.diveSide = Math.sign(-p.fx * p.diveDir) || 1; } m.diveT += dt; realDivePose(p, m, clamp(m.diveT / 0.6, 0, 1), null); return; }
+    if (m.diving) { m.diving = false; m.diveRec = 0.45; }
+    if (m.diveRec > 0) { m.diveRec -= dt; realDivePose(p, m, 1, clamp(m.diveRec / 0.45, 0, 1)); return; }
+  }
+  if (!isGK && m.bones.LeftUpLeg && m.bones.LeftArm) {
+    const sliding = p.slide > 0 || p.tackleAnim > 0.05;   // オンラインの相手の画面では tackleAnim だけが送られてくる
+    if (sliding) { if (!m.sliding) { m.sliding = true; m.slideT = 0; } m.slideT += dt; realSlidePose(p, m, clamp(m.slideT / 0.65, 0, 1), null); return; }
+    if (m.sliding) { m.sliding = false; m.slideRec = 0.4; }
+    if (m.slideRec > 0) { m.slideRec -= dt; realSlidePose(p, m, 1, clamp(m.slideRec / 0.4, 0, 1)); return; }
+  }
   if (S.phase === 'goal' && S.scorer === p && p.celebrate > 0 && m.bones.LeftArm) { realCelebrate(p, m); return; }   // 点を取った人のパフォーマンス
   if (!isGK && m.bones.LeftUpLeg && S.phase === 'play') {
     if (p.legPose > 0 && !(p.slide > 0)) { realGKPose(p, m, p.legPoseType, 1 - p.legPose / 0.45); return; }   // ボールが来た瞬間だけ足（体）をのばす。ふだんはジョグのまま
@@ -2992,6 +3004,47 @@ function animateReal(p, dt) {
     m.bones.LeftArm.rotation.set(0, 0, 0.3); m.bones.RightArm.rotation.set(0, 0, -0.3);
     m.bones.LeftArm.rotateZ(1.2); m.bones.RightArm.rotateZ(-1.2);
   }
+}
+// ----- 2026-11-09 選手ビジュアル担当：骨を「目当ての形」へ k の分だけ近づける（動きのデータとなめらかにまぜる） -----
+const BT_O = new THREE.Object3D();
+function boneTo(bone, k, x, y, z, order) { if (!bone || k <= 0) return; BT_O.rotation.set(x, y, z, order || 'XYZ'); bone.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); }
+function armTo(A, F, k, x, z, fz) { if (!A) return; BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateX(x); BT_O.rotateZ(z); A.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); if (F) { BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateZ(fz || 0); F.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); } }
+// キーパーの横っとび：コート（シュートを打つ人）の方を向いたまま、横へたおれこむように飛ぶ
+//  u：0→1 飛んでいる進み具合　rec：着地のあとの起き上がり（1→0）。m.diveSide：+1 なら体の左（ローカル +x）へ
+function realDivePose(p, m, u, rec) {
+  const b = m.bones, s = m.diveSide || 1, h = 0.93;
+  const roll = rec != null ? 1.4 * rec * rec : 1.4 * smooth(0.06, 0.62, u);             // 体のたおれる角度（約80度まで）
+  const lift = rec != null ? 0 : 0.3 * Math.sin(clamp((u - 0.08) / 0.62, 0, 1) * Math.PI); // 少し宙にうく
+  const k = rec != null ? rec : Math.min(1, u / 0.12);
+  // 足もとを中心に横へたおすと、体が横にずれる → こしが真ん中に近くなるように、少し引きもどす
+  m.root.rotation.z = -s * roll;
+  m.root.position.x = -s * h * Math.sin(roll) * 0.55;
+  m.root.position.y = Math.max(0, 0.16 - h * Math.cos(roll)) + lift;
+  m.poseRoll = true;
+  // うで：両手を頭の先（＝飛ぶ方）へまっすぐのばす。少しだけ前（ボールの方）
+  const L = s > 0;   // 左へ飛ぶ
+  const [la, lf, oa, of] = L ? [b.LeftArm, b.LeftForeArm, b.RightArm, b.RightForeArm] : [b.RightArm, b.RightForeArm, b.LeftArm, b.LeftForeArm];
+  const zs = A => A === b.LeftArm ? 1 : -1;   // 前へ出す向き（左＋・右−）
+  armTo(la, lf, k, -1.5, zs(la) * 0.3, 0); armTo(oa, of, k, -1.3, zs(oa) * 0.55, zs(oa) * 0.15);
+  // 足：飛ぶ方の足はまっすぐ、反対の足は少しひざを曲げる
+  const [lu, ll, tu, tl] = L ? [b.LeftUpLeg, b.LeftLeg, b.RightUpLeg, b.RightLeg] : [b.RightUpLeg, b.RightLeg, b.LeftUpLeg, b.LeftLeg];
+  const out = U => U === b.LeftUpLeg ? -1 : 1;
+  boneTo(lu, k, Math.PI + 0.12, 0, out(lu) * 0.25); boneTo(ll, k, -0.08, 0, 0);
+  boneTo(tu, k, Math.PI + 0.35, 0, out(tu) * 0.05); boneTo(tl, k, -0.65, 0, 0);
+  if (b.Spine) b.Spine.rotateZ(-s * 0.18 * k);   // 体を少しそらして、手を遠くへ
+  if (b.Head) b.Head.rotateZ(s * roll * 0.35);   // 目はボールを見たまま（頭はあまりたおさない）
+}
+// スライディング：体がしずんで、片足をのばして地面をすべる。止まったら起き上がる
+//  u：0→1 すべっている進み具合　rec：起き上がり（1→0）
+function realSlidePose(p, m, u, rec) {
+  const b = m.bones, k = rec != null ? rec * rec : smooth(0, 0.16, u);
+  m.root.position.y = -0.58 * k;   // こしを地面の近くまで落とす
+  // のばす足（右）：前へまっすぐ。たたむ足（左）：ひざを曲げて体の下に
+  boneTo(b.RightUpLeg, k, Math.PI + 1.42, 0, 0.06); boneTo(b.RightLeg, k, -0.04, 0, 0);
+  boneTo(b.LeftUpLeg, k, Math.PI + 0.95, 0, -0.75); boneTo(b.LeftLeg, k, -1.75, 0, 0);
+  // 上半身は少しうしろへたおす。左手は地面について、右手はバランス
+  if (b.Spine) b.Spine.rotateX(-0.42 * k); if (b.Spine1) b.Spine1.rotateX(-0.12 * k); if (b.Head) b.Head.rotateX(0.35 * k);
+  armTo(b.LeftArm, b.LeftForeArm, k, 1.05, -0.55, 0.1); armTo(b.RightArm, b.RightForeArm, k, -0.15, -0.65, -0.35);
 }
 // キーパーのポーズ（骨を直接動かす）。k は 0→1 の進み具合
 function realGKPose(p, m, type, k) {
@@ -3242,7 +3295,8 @@ function updateSetPiece(dt) {
   if (sp.type === 'pk' && S.pk) { pkUpdate(dt); return; }   // PK は読み合い
   if (sp.type === 'fk' && S.fk) { fkUpdate(dt); return; }   // ゴールに近いフリーキックも読み合い
   if (sp.type === 'fk' && sp.wall && sp.fkCheck !== true && sp.t < 4 && sp.wall.some(w => d2(w.p.pos, w) > 0.6)) return;   // 壁がならぶのを待つ
-  if (sp.type === 'fk' && sp.fkCheck !== true) { sp.fkCheck = true; fkStart(sp.team, sp); if (S.fk) return; }   // 人がけるフリーキックは、ゴールからの距離に関係なく毎回ねらう画面を出す（2026-10-21：前は15mより近いときだけで、出たり出なかったりした。遠いときは「パスで始める」も使える）
+  if (sp.type === 'fk' && sp.fkCheck !== true && sp.pos.x * sp.team.dir > 0) { sp.fkCheck = true; fkStart(sp.team, sp); if (S.fk) return; }   // 2026-11-09：ねらいの画面は敵陣のフリーキックだけ（自陣はふつうのパスで始める）
+    // 人がけるフリーキックは、ゴールからの距離に関係なく毎回ねらう画面を出す（2026-10-21：前は15mより近いときだけで、出たり出なかったりした。遠いときは「パスで始める」も使える）
   if (!sp.ready) { sp.readyT -= dt; if (sp.readyT <= 0) { sp.ready = true; sfx('whistle', 1); } return; }
   if (tk.team.human == null || (tk.team.lockData && tk !== tk.team.lockP)) { sp.cpuT -= dt; if (sp.cpuT <= 0) cpuRestartKick(tk); }
   else if (sp.t > 10 && sp.type !== 'kickoff') doPass(tk, null, null); // 人がずっとけらないときは自動でパス（キックオフは自分でけるまで待つ）
@@ -3754,11 +3808,12 @@ function doShoot(p, power, aim, kind = '') {
   let spd;
   if (kind === 'chip') spd = clamp(dist * 0.9, 11, 17) * (0.85 + power * 0.3);   // 山なりでキーパーの上をこえる
   else if (kind === 'toe') spd = rand(25, 28);                                     // ためずに速い
-  else if (kind === 'header') spd = rand(12, 16) + (p.st.ph ?? 70) / 40;          // ヘディング：少しおそい（体が強いほど強い）
+  else if (kind === 'header') spd = (rand(12, 16) + (p.st.ph ?? 70) / 40) * clamp(1.25 - dist0 * 0.06, 0.4, 1.05);   // ヘディング：少しおそい（体が強いほど強い）。遠いほど弱い（2026-11-09：6mで約0.9倍・10mで0.65倍・15mより遠いと0.4倍）
   else if (kind === 'volley' || kind === 'scissor') spd = rand(20, 27);           // ボレー：速い
   else spd = 13 + power * 17;
   if (has(p, 'cannon') && kind !== 'chip') spd *= 1.12;
-  const T = dist / spd, vy = (ty - ball.p.y + 0.5 * GRAV * T * T) / T;
+  const T = dist / spd; let vy = (ty - ball.p.y + 0.5 * GRAV * T * T) / T;
+  if (kind === 'header') vy = Math.min(vy, 2.5);   // ヘディングは山なりにして遠くへ届かせない（遠くからは、とちゅうで落ちて弱い球になる）
   let dx = gx - ball.p.x, dz = tz - ball.p.z; const l = Math.hypot(dx, dz) || 1;
   p.kickType = 'shot'; p.kickStyle = ks;
   kick(p, V3(dx / l * spd, vy, dz / l * spd));
@@ -3787,18 +3842,18 @@ function tryTackle(p) { // スライディングタックル：ボールの方�
   p.tackleCd = 1.4; p.tackleAnim = 0.7; p.slide = 0.65; p.slideHit = false;
   let fx = p.fx, fz = p.fz; const dx = ball.p.x - p.pos.x, dz = ball.p.z - p.pos.z, d = Math.hypot(dx, dz);
   if (d < 5 && d > 0.1) { fx = dx / d; fz = dz / d; p.fx = fx; p.fz = fz; }
-  const v = Math.max(6.5, Math.hypot(p.vel.x, p.vel.z) + 2);
+  const v = clamp(Math.hypot(p.vel.x, p.vel.z) + 2.5, 6.5, 8.5);   // すべる速さ（全力で走っていても 8.5m/s まで。すべるきょりは約2〜2.7m）（2026-11-09）
   p.vel.set(fx * v, 0, fz * v);
   sfx('slide');
 }
 function slideUpdate(p, dt) { // すべっている間
   p.slide -= dt; p.vel.multiplyScalar(Math.exp(-dt * 2.4));
   if (!p.slideHit && p.slide > 0.08) {
-    const tx = p.pos.x + p.fx * 0.85, tz = p.pos.z + p.fz * 0.85; // のばした足の先
-    const o = ball.owner;
-    const hitBall = Math.hypot(ball.p.x - tx, ball.p.z - tz) < 0.75 && ball.p.y < 0.5;
+    const tx = p.pos.x + p.fx * 1.05, tz = p.pos.z + p.fz * 1.05; // のばした足の先
+    const o = ball.owner, legD = q => segDist(q, p.pos, { x: tx, z: tz });   // 当たり判定：腰から足の先までの「足の線」とのきょり（2026-11-09：前は足の先の1点だけ）
+    const hitBall = legD(ball.p) < 0.42 && ball.p.y < 0.5;
     const gkHands = o && o.role === 'GK' && o.hold > 0;   // 手で持っているキーパーにはタックルできない（足で運んでいるときはできる）
-    const hitBody = o && o.team !== p.team && !gkHands && Math.hypot(o.pos.x - tx, o.pos.z - tz) < 0.7;
+    const hitBody = o && o.team !== p.team && !gkHands && legD(o.pos) < 0.5;
     if (hitBall || hitBody) {
       p.slideHit = true;
       if (o && (o.team === p.team || gkHands)) return;   // 味方や、手で持っているキーパーのボールには当てない
@@ -3825,8 +3880,12 @@ function slideUpdate(p, dt) { // すべっている間
       }
       // ボールを取れずに相手の足に当たった → ファウル
       if (o && S.cfg.mode !== 'tutorial') {
-        let pf = behind ? 0.7 : hitBody ? 0.3 : 0.12; if (has(p, 'tackle')) pf *= 0.6;
-        if (Math.random() < pf) commitFoul(p, o, behind);
+        let pf = behind ? 0.8 : hitBody && !hitBall ? 0.55 : hitBody ? 0.3 : 0.1; if (has(p, 'tackle')) pf *= 0.6;   // 2026-11-09：ボールにさわらずに相手だけ引っかけたら、ファウルになりやすい
+        if (Math.random() < pf) { commitFoul(p, o, behind); return; }
+      }
+      if (hitBall && o && Math.random() < 0.5) { // 足はボールに届いた：取れなくても、ボールに当たってこぼれる（2026-11-09）
+        o.kickCd = 0.3; ball.owner = null; ball.v.set(p.fx * 2.5 + rand(-1.5, 1.5), 0.2, p.fz * 2.5 + rand(-1.5, 1.5));
+        ball.lastTouch = p.team; ball.lastKicker = p; ball.receiver = null; ball.isShot = false; ball.passId = (ball.passId || 0) + 1; sfx('kick', 0.3);
       }
     }
   }
@@ -4151,7 +4210,7 @@ function fkKick() { // 人がける
 }
 // 線にそってける。FK の数値が高いほど線のとおり、低いとずれる
 function fkShoot(p, F) {
-  const s = F.team.dir, gk = F.team.opp.players[0], fk = fkVal(p), e = (1 - fk / 100) * 1.5;   // FK の数値が低いほど、線からずれる
+  const s = F.team.dir, gk = F.team.opp.players[0], fk = fkVal(p), fd = Math.hypot(s * HALF_L - ball.p.x, ball.p.z), e = (1 - fk / 100) * 1.5 + Math.max(0, fd - 10) * 0.025;   // FK の数値が低いほど、線からずれる。ゴールから10mより遠いほど、ずれやすい（2026-11-09）
   const aim = { z: F.aim.z + randn() * e * 0.75, y: clamp(F.aim.y + randn() * e * 0.45, 0.15, 3.5), curve: clamp(F.aim.curve + randn() * e * 0.3, -1, 1) };
   const r = fkSolve(ball.p.clone(), s, aim, cvMax(p));
   p.kickType = 'shot'; p.kickStyle = { kind: Math.abs(aim.curve) > 0.3 ? 'twist' : 'normal', a: 0 };
@@ -4204,7 +4263,7 @@ function startPenalty(v, dist) { // PK（6m）・第2PK（10m）
 // キーパーが届くはば（m）：能力・身長・腕・脚の長さ・シュートのタイミングで決まる
 let MISS_K = 1.7;    // 枠の外へ外れる多さ（2026-10-15：5分ハーフで両チーム合計 平均6点くらいに）
 let GK_CROSS = 0.4, GK_CROSS_READ = 0.5;   // クロスのとき、キーパーがボールの落ちる所をどれだけ先読みするか（0＝しない・1＝落ちる所）・クロスを正しく読める割合（2026-10-20：ヘディングが36%も決まっていた → 読める割合 0.45で24%・0.55で12% → 0.5 で2割くらい。読めないときは前と同じく、クロスの通り道＝柱のそばへ動く）
-let GK_SCALE = 1.24;   // 全体の調整用（2026-10-15：1.38 で平均6点くらい → 2026-11-08：キーパーを少し弱く 1.24。CPU 30試合で平均6.63点・セーブ率84%、強さ2は6.40点）
+let GK_SCALE = 1.30;   // 全体の調整用（2026-10-15：1.38 で平均6点くらい → 2026-11-08：キーパーを少し弱く 1.24。CPU 30試合で平均6.63点・セーブ率84%、強さ2は6.40点 → 2026-11-09：ボールに行くのが1人だけの守りにしたら点が7点をこえたので 1.30）
 function gkReach(g, y, sh) {
   const d = g.data || {}, ht = (d.ht || 183) / 100, arm = d.arm || 1, leg = d.leg || 1;
   const T = sh ? sh.timing : 0.3, react = clamp((g.st.gk - 50) / 45, 0, 1.1);
@@ -4218,7 +4277,7 @@ function gkReach(g, y, sh) {
   else r = y > topY + dive * 0.45 ? 0 : handR * 0.85 + dive * 0.8;        // 高い：手をのばす（頭の上をこえると届かない）
   if (has(g, 'wall')) r += 0.08;
   if (sh && sh.oneTouch) r *= 0.85;   // 横パスをダイレクト（セグンドなど）：キーパーは横に動きながらなので届きにくい（2026-11-08：前は oneTouch を作っていたのに使っていなかった）
-  if (sh && sh.kind === 'fk') r *= 0.6;   // フリーキック：壁でボールが見えにくく、ゴールラインで構えている
+  if (sh && sh.kind === 'fk') r *= 0.6 + clamp((sh.d - 10) * 0.01, 0, 0.12);   // フリーキック：壁でボールが見えにくく、ゴールラインで構えている。10mより遠いと、ボールが少し見えやすい（2026-11-09：16mで0.66倍・20mで0.7倍）
   if (sh && sh.fkGuess === 'hit') r += 0.45; else if (sh && sh.fkGuess === 'miss') r -= 0.3;   // フリーキックの読み
   r *= 1 - (ball.blind || 0) * 0.22;                                     // ブラインド
   return r * GK_SCALE * rand(0.94, 1.06);
@@ -4273,21 +4332,23 @@ function gkSaveCheck() { // キーパーのセーブ
         Rh = !ok ? (spd < 12 && need < 0.6 && ball.p.y < 0.6 ? R : 0) : R * (us.side === 0 ? (need < 0.8 ? 1.15 : 0.75) : us.side === side ? 1.15 : (need < 0.45 ? 0.9 : 0.3));
         g.userSave = null;
       }
-      if (!inArea(g.pos, t)) Rh *= 0.35;   // ペナルティエリアの外：手は使えないので、体や足で当たるだけ
+      const outA = !inArea(g.pos, t);
+      if (outA) Rh = y < 1.0 ? Math.min(Rh * 0.35, 0.45) : 0;   // ペナルティエリアの外：手は使えないので、体や足に当たるだけ（2026-11-09：高いボールはさわれない・キャッチしない）
       ball.saveInfo = { need, reach: Rh };
       if (!(need < Rh || (spd < 10 && need < Rh + 0.45))) continue;   // 届かない → ゴール（または外れ）。遅いボールは、少し遠くても動いて届く
       if (true) {
         // どの技で止めたか（キーパーの動きの種類）
         const off = Math.abs(ball.p.z - g.pos.z), y = ball.p.y;
         let ty = g.dive > 0 ? 'dive' : y > 1.45 ? 'tip' : spreadOK ? 'spread' : off < 0.45 && y < 1.2 ? 'block' : y < 0.45 ? 'foot' : 'hand';
+        if (outA) ty = y < 0.45 ? 'foot' : 'block';   // エリアの外は足か体だけ
         if (g.dive <= 0) { g.savePose = ty; g.savePoseT = 0.9; g.saveSide = sgn((ball.p.z - g.pos.z) * -g.team.dir) ; }
         if (ty === 'tip') { // バーの上へはじき出す
           ball.v.x = -ball.v.x * 0.15; ball.v.y = rand(4.5, 6); ball.v.z *= 0.3;
           ball.isShot = false; ball.lastTouch = t; ball.lastKicker = g; g.kickCd = 0.5;
           saveFX(g, true, 'バーの上へはじき出した！'); continue;
         }
-        if (ty === 'block' && spd < 24 && y < 1.3 && Math.random() < 0.62) { gainBall(g); g.hold = 1.4; saveFX(g, false, '正面でがっちりキャッチ！'); continue; }   // 2026-11-08：キャッチを少し減らす（0.75→0.62。はじいたボールはセグンドのチャンス）
-        if (spd < 20 && ball.p.y < 1.7 && ty !== 'foot' && ty !== 'spread' && Math.random() < 0.42) { gainBall(g); g.hold = 1.4; }  // キャッチ（0.55→0.42）
+        if (!outA && ty === 'block' && spd < 24 && y < 1.3 && Math.random() < 0.62) { gainBall(g); g.hold = 1.4; saveFX(g, false, '正面でがっちりキャッチ！'); continue; }   // 2026-11-08：キャッチを少し減らす（0.75→0.62。はじいたボールはセグンドのチャンス）
+        if (!outA && spd < 20 && ball.p.y < 1.7 && ty !== 'foot' && ty !== 'spread' && Math.random() < 0.42) { gainBall(g); g.hold = 1.4; }  // キャッチ（0.55→0.42）
         else { // はじく
           ball.v.x = -ball.v.x * 0.3; ball.v.z = rand(-1, 1) * 5 + sgn(ball.p.z - g.pos.z) * 3; ball.v.y = rand(2, 4.5);
           ball.isShot = false; ball.lastTouch = t; ball.lastKicker = g; g.kickCd = 0.5;
@@ -4317,7 +4378,7 @@ function aerialPlay() {
   const { p, hands } = c[0], t = p.team; ball.airTried.add(p.idx);
   if (hands) { if (ball.isShot && ball.lastTouch !== t) return; gainBall(p); p.hold = 1.2; return; }   // ゴレイロがクロスをキャッチ（シュートはセーブの方で）
   if (ball.isShot && ball.lastTouch !== t && !head) return;   // 相手のシュートはふつうはブロックの方で
-  const human = t.human != null && t.controlled === p, inp = human ? humanInput(t.human) : null;
+  const human = t.human != null && (t.controlled === p || (!t.lockData && (ball.receiver === p || ball.lobTo === p))), inp = human ? humanInput(t.human) : null;   // 人のチームで、自分へのパス・クロスを受ける選手も、ボタンを押したときだけ頭でさわる（2026-11-09：前は操作が切りかわる前に CPU として勝手にヘディングシュートしていた）
   const gx = HALF_L * t.dir, toGoal = Math.hypot(gx - p.pos.x, p.pos.z), attacking = p.pos.x * t.dir > 0, fromOpp = ball.lastTouch && ball.lastTouch !== t;
   const aimed = ball.cross || (human && ball.receiver === p);   // クロス（自分が操作しているときは、自分へのパスも）
   let act;
@@ -4333,6 +4394,7 @@ function aerialPlay() {
     else act = 'trap';
   }
   if (act === 'trap') return;   // 足で止める（ふつうに受ける）
+  if (human && t.controlled !== p) setControlled(t, p);
   aerialTouch(p, act, head, inp);
 }
 function aerialTouch(p, act, head, inp) {
@@ -4695,6 +4757,15 @@ function legCatch(dt) {
     sfx('kick', 0.4); if (teams.some(t => t.human != null)) showMsg('', shot ? (kind === 'body' ? '🛡 体でシュートブロック！' : '🦵 足でシュートブロック！') : '🦵 カット！', 0.9);
   }
 }
+// パワープレー：キーパーと交代して、ベンチのフィールドの選手がキーパーのシャツだけを着て入る（交代ゾーンから）。入った選手の名前を返す（2026-11-09）
+function ppSwap(t) {
+  const g = t.players[0]; if (!g || g.role !== 'GK' || g.off || t.ppGK || (t.lockP && t.lockP === g) || !t.squad) return null;   // なりきりのゴレイロは自分で上がる
+  const cand = benchData(t).filter(d => d.pos !== 'GK' && !t.squad.gk.includes(d) && !d.sent && d !== t.lockData).sort((a, b) => (b.energy ?? 100) - (a.energy ?? 100));
+  if (!cand.length || ball.owner === g) return null;
+  t.ppGK = g.data;
+  bindData(g, cand[0]); const z = subZone(t.i); g.pos.set(z.x, 0, -HALF_W + 0.4); g.vel.set(0, 0, 0); g.hold = 0; g.dive = 0;
+  return cand[0].name;
+}
 function assignRoles() { // だれがボールを追うか・だれをマークするか
   for (const t of teams) {
     const field = t.players.filter(p => p.role !== 'GK' && !p.off);
@@ -4706,10 +4777,10 @@ function assignRoles() { // だれがボールを追うか・だれをマーク�
       if (ctrl && d2(ctrl.pos, ball.p) < bd + 1 && !(HS[t.human] && HS[t.human].pressing)) ch = null; // プレス中は味方も寄せる
     }
     if (ch === ctrl) ch = null;
-    t.chaser = ch; t.marks.clear();
+    t.chaser = ch; t.marks.clear(); (t.zmark || (t.zmark = new Map())).clear(); t.zoneOn = false;
     t.chaser2 = null;   // 「前からプレス」のときは2人目もボールに寄せる
     // こぼれ球（だれのボールでもない）：近い2人がすぐ反応する。人が操作している選手が近くても、CPU の味方も向かう
-    t.loose = S.phase === 'play' && !ball.owner && !(ball.receiver && ball.receiver.team === t);
+    t.loose = S.phase === 'play' && !ball.owner && !ball.receiver;   // 相手のパスが転がっているときは「こぼれ球」にしない（2026-11-09：前は2人目もボールへ行っていた）
     if (t.loose) {
       if (!t.chaser) { let bd = 1e9; for (const p of field) { if (p === ctrl) continue; const d = d2(p.pos, ball.p); if (d < bd) { bd = d; t.chaser = p; } } }
       let bd2 = 1e9; for (const p of field) { if (p === ctrl || p === t.chaser) continue; const d = d2(p.pos, ball.p); if (d < bd2) { bd2 = d; t.chaser2 = p; } }
@@ -4727,7 +4798,13 @@ function assignRoles() { // だれがボールを追うか・だれをマーク�
       }
       t.chaser = null;
       for (const [p, q] of t.marks) if (q === (ball.owner || ball.receiver)) { t.marks.delete(p); if (p !== ctrl) t.chaser = p; }   // ボールを持った（パスを受ける）相手のマークの人が寄せる（人が操作している選手なら、その人にまかせる）
-      if (t.chaser2) t.marks.delete(t.chaser2);
+    } else if (oppPoss && t.mark === 'zone') { // ゾーン：ボール（パスの行き先）がある場所を守る担当の人だけがボールに行く（2026-11-09）
+      const bp = ball.owner ? ball.owner.pos : ball.receiver ? ball.receiver.pos : ball.p;
+      let zc = null, zd = 1e9;
+      for (const p of field) { const s = zoneSpot(p), d = d2(s, bp) - (p === t.zoneCh ? 1.5 : 0); if (d < zd) { zd = d; zc = p; } }   // 前の担当は少し続ける（ぱたぱた入れかわらない）
+      t.zoneCh = zc; t.chaser = zc === ctrl ? null : zc;   // 担当が人の操作している選手なら、その人にまかせる
+      t.zoneOn = true; const taken = new Set([ball.owner]);   // 自分のゾーンに入ってきた相手につく（1人の相手には1人だけ。ボールを持った相手は担当の人）
+      for (const p of field) { if (p === zc) continue; const s = zoneSpot(p); let q = null, qd = 3.2; for (const o of t.opp.players) { if (o.role === 'GK' || o.off || taken.has(o)) continue; const od = d2(o.pos, s); if (od < qd) { qd = od; q = o; } } if (q) { taken.add(q); t.zmark.set(p, q); } }
     } else if (oppPoss && t.mark !== 'zone') {
       const own = { x: -HALF_L * t.dir, z: 0 };
       const opps = t.opp.players.filter(q => q.role !== 'GK' && q !== ball.owner && !q.off).sort((a, b) => d2(a.pos, own) - d2(b.pos, own));
@@ -4738,14 +4815,29 @@ function assignRoles() { // だれがボールを追うか・だれをマーク�
         t.marks.set(free[bi], q); free.splice(bi, 1);
       }
     }
+    if (oppPoss) { // 相手のボールのとき、ボールに行くのは1人だけ（2026-11-09）
+      t.chaser2 = null;
+      const o = ball.owner, gx = -HALF_L * t.dir;
+      if (o && o.role !== 'GK' && Math.hypot(o.pos.x - gx, o.pos.z) < 10) { // ゴールの近くで担当の人がぬかれた → ゴールがわにいるいちばん近い人が代わりに行く（マークは入れかえる）
+        const cur = t.chaser || (t.mark === 'zone' ? t.zoneCh : [...t.marks.keys()].find(p => t.marks.get(p) === o)) || ctrl;
+        const beaten = q => !q || ((q.pos.x - o.pos.x) * t.dir > 0.3 && d2(q.pos, o.pos) > 1.5);
+        if (beaten(cur)) {
+          let cv = null, cd = 5; for (const p of field) { if (p === ctrl || p === cur || (p.pos.x - o.pos.x) * t.dir > -0.3) continue; const d = d2(p.pos, o.pos); if (d < cd) { cd = d; cv = p; } }
+          if (cv) { const q = t.marks.get(cv); t.marks.delete(cv); if (cur && cur !== ctrl && q) t.marks.set(cur, q); else if (cur) t.marks.delete(cur); t.chaser = cv; }
+        }
+      }
+      if (t.chaser) t.marks.delete(t.chaser);
+    }
   }
 }
+function zoneSpot(p) { const f = formTarget(p, false); return { x: f.x, z: f.z * 0.75 + ball.p.z * 0.25 }; }   // ゾーンで守る自分の場所（ボールの方へ、みんなで少しずれる）
 // ゾーン：自分の場所（ボールの方へまとまる）を守り、その場所に入ってきた相手にだけ寄せる
 function zoneTarget(p) {
-  const t = p.team, gx = -HALF_L * t.dir, f = formTarget(p, false);
-  const spot = { x: f.x, z: f.z * 0.75 + ball.p.z * 0.25 };   // ボールのある方へ、みんなで少しずれる
+  const t = p.team, gx = -HALF_L * t.dir;
+  const spot = zoneSpot(p);   // ボールのある方へ、みんなで少しずれる
   let q = null, qd = 3.2;
-  for (const o of t.opp.players) { if (o.role === 'GK' || o.off || o === ball.owner) continue; const od = d2(o.pos, spot); if (od < qd) { qd = od; q = o; } }
+  if (t.zoneOn) q = t.zmark.get(p) || null;   // 相手のボールのときは assignRoles で決めた相手（ほかの人とかぶらない）（2026-11-09）
+  else for (const o of t.opp.players) { if (o.role === 'GK' || o.off || o === ball.owner) continue; const od = d2(o.pos, spot); if (od < qd) { qd = od; q = o; } }
   if (!q) return spot;
   const dx = gx - q.pos.x, dz = -q.pos.z, l = Math.hypot(dx, dz) || 1;   // 入ってきた相手とゴールの間へ（場所からははなれすぎない）
   return { x: (q.pos.x + dx / l * 1.3) * 0.6 + spot.x * 0.4, z: (q.pos.z + dz / l * 1.3) * 0.6 + spot.z * 0.4 };
@@ -4820,18 +4912,17 @@ function aiField(p, dt) {
     if (inArea(tg, owner.team)) { const gx = -HALF_L * owner.team.dir; tg = { x: gx + owner.team.dir * 7, z: tg.z }; }
   } else {
     const gx = -HALF_L * t.dir;
-    if (t.chaser === p || (t.chaser2 === p && d2(p.pos, ball.p) < 9)) { // ボールを持つ相手にプレッシャー
+    if (t.chaser === p) { // ボールを持つ相手にプレッシャー（行くのは担当の1人だけ。2026-11-09：前は「前からプレス」の2人目と、近くにいる人も寄せていた）
       const dx = gx - owner.pos.x, dz = -owner.pos.z, l = Math.hypot(dx, dz) || 1;
       tg = { x: owner.pos.x + dx / l * 0.5, z: owner.pos.z + dz / l * 0.5 }; urgent = true;
       // CPU は相手の前か横からだけスライディングする（後ろからはファウルになりやすいので）
       const db = d2(p.pos, ball.p), front = (owner.fx * (p.pos.x - owner.pos.x) + owner.fz * (p.pos.z - owner.pos.z)) / (db || 1);
       if (db < 2.0 && db > 0.8 && front > -0.2 && p.tackleCd <= 0 && !(p.blocked > 0) && Math.random() < dt * 0.45 * t.ai.tackle) tryTackle(p);
       else if (db < 1.7 && !(p.slide > 0) && !(p.legCd > 0)) { p.legCd = 1.2; if (Math.random() < 0.5) p.legOut = 0.5; }   // 近くでは ときどき足をのばして構える
-    } else if (d2(p.pos, owner.pos) < 3.0 && (p.pos.x - owner.pos.x) * t.dir < 1.0 && !(p.slide > 0)) { // 操作していない味方も、ボールを持った相手が近くに来たら寄せる：ゴールがわに立ってコースを切る（2026-11-08）
-      const dx = gx - owner.pos.x, dz = -owner.pos.z, l = Math.hypot(dx, dz) || 1;
-      tg = { x: owner.pos.x + dx / l * 0.9, z: owner.pos.z + dz / l * 0.9 }; urgent = true;
-      if (d2(p.pos, owner.pos) < 1.6 && !(p.legCd > 0)) { p.legCd = 1.4; if (Math.random() < 0.45) p.legOut = 0.5; }   // 近くでは足をのばしてとりに行く
-    } else ({ tg, urgent } = defendTarget(p, owner));
+    } else { // 2026-11-09：「ボールを持った相手が3mより近くに来たら、だれでも寄せる」はやめた（全員がボールへ行ってしまうので）。マーク・ゾーンの場所を守り、目の前に来たら足だけ出す
+      ({ tg, urgent } = defendTarget(p, owner));
+      if (d2(p.pos, owner.pos) < 1.4 && !(p.legCd > 0) && !(p.slide > 0)) { p.legCd = 1.6; if (Math.random() < 0.35) p.legOut = 0.5; }
+    }
   }
   moveTo(p, tg, urgent, dt, chase);
 }
@@ -4847,6 +4938,11 @@ function defendTarget(p, owner) {
   else tg = formTarget(p, false);
   // 戻る：ボールを失ったら すぐ帰陣。ボールより前（相手ゴールがわ）にいる・自分の場所から遠いときは全力でもどり、自分の陣地ではボールよりゴールがわに入る（2026-11-08）
   if (bp.x * t.dir < 2 && (tg.x - bp.x) * t.dir > -1) tg = { x: clamp(bp.x - t.dir * 1.5, -HALF_L + 1, HALF_L - 1), z: tg.z };
+  if (owner) { // ボールに行くのは担当の1人だけ：ほかの人は、自分のマークの相手・ゾーンに入った相手がボールの近くにいるときのほかは、ボールから2.8mはなれて待つ（2026-11-09）
+    const q = t.marks.get(p) || (t.zmark && t.zmark.get(p)), legit = q && d2(q.pos, bp) < 3;
+    const dx = tg.x - bp.x, dz = tg.z - bp.z, dd = Math.hypot(dx, dz);
+    if (!legit && dd < 2.8) { const ux = dd > 0.2 ? dx / dd : -t.dir, uz = dd > 0.2 ? dz / dd : 0; tg = { x: clamp(bp.x + ux * 2.8, -HALF_L + 0.5, HALF_L - 0.5), z: clamp(bp.z + uz * 2.8, -HALF_W + 0.5, HALF_W - 0.5) }; }
+  }
   if ((p.pos.x - bp.x) * t.dir > 0.5 || d2(p.pos, tg) > 4) urgent = true;
   return { tg, urgent };
 }
@@ -5380,7 +5476,8 @@ function step(dt) {
     // パワープレーは、ボールを敵陣まで運んでからスタート。ボールを取られたら終わり（キーパーはもどる）
     const mineP = (ball.owner && ball.owner.team === t) || (!ball.owner && ball.lastTouch === t && S.phase === 'play');
     if (!t.pp || !mineP) t.ppOn = false;
-    else if (!t.ppOn && ball.p.x * t.dir > 0 && S.phase === 'play') { t.ppOn = true; if (t.human != null && t.human === localHuman()) localMsg('', '🧤 パワープレー開始！ キーパーも上がる', 1.4); }
+    else if (!t.ppOn && ball.p.x * t.dir > 0 && S.phase === 'play') { t.ppOn = true; const sw = ppSwap(t); if (t.human != null && t.human === localHuman()) localMsg('', sw ? `🧤 パワープレー開始！ キーパーと交代して、${sw} がキーパーのシャツで入る` : '🧤 パワープレー開始！ キーパーも上がる', 1.8); }
+    if (t.ppGK && !t.ppOn && S.phase !== 'play') { const g = t.players[0], back = t.ppGK; t.ppGK = null; if (g.data !== back && !g.off) { bindData(g, back); if (t.human != null && t.human === localHuman()) localMsg('', `🔄 キーパーの ${back.name} がもどった`, 1.2); } }   // パワープレーが終わったら、次にプレーが止まったときにキーパーと交代でもどす
   }
   updateEnergy(dt); updateSets(dt); updateOff(dt);
   if (ball.protect > 0) ball.protect -= dt;
