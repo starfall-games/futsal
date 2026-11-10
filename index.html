@@ -900,19 +900,33 @@ const store = {
 // ===== チーム（架空のチーム） =====
 // sp=スピード sh=シュート pa=パス df=守備 gk=キーパー（100が最高）
 const TEAMS = [
-  { id: 'tokyo',   name: '東京スターズ',     short: 'TOK', main: '#1f5fe0', sub: '#ffffff', gkc: '#ffcc00', sp: 80, sh: 80, pa: 84, df: 76, gk: 78 },
-  { id: 'osaka',   name: '大阪ブレイズ',     short: 'OSA', main: '#e3342f', sub: '#ffffff', gkc: '#2ee59d', sp: 85, sh: 83, pa: 74, df: 72, gk: 75 },
-  { id: 'sapporo', name: '札幌スノウ',       short: 'SAP', main: '#eef3fa', sub: '#1b2b55', gkc: '#ff7a00', sp: 72, sh: 74, pa: 79, df: 85, gk: 83 },
-  { id: 'fukuoka', name: '福岡ウェーブ',     short: 'FUK', main: '#00a7b5', sub: '#ffffff', gkc: '#ff3d7f', sp: 79, sh: 77, pa: 81, df: 77, gk: 76 },
-  { id: 'sendai',  name: '仙台サンダー',     short: 'SEN', main: '#ffd400', sub: '#1a1a1a', gkc: '#6a3cff', sp: 76, sh: 72, pa: 72, df: 79, gk: 72 },
-  { id: 'kobe',    name: '神戸フェニックス', short: 'KOB', main: '#7b2cbf', sub: '#ffd166', gkc: '#00d084', sp: 83, sh: 78, pa: 77, df: 70, gk: 70 },
-  // ↓ 2026-11-10 新モード担当：Fリーグ（F1）と同じ12チームにするため6つ足した（ぜんぶ架空のチーム）。横浜・名古屋はトーナメント用だったチームと同じ id（前のセーブがそのまま読める）
-  { id: 'cupyoko', name: '横浜ブリーズ',     short: 'YOK', main: '#0b8f6a', sub: '#ffffff', gkc: '#ff4fa0', sp: 77, sh: 76, pa: 78, df: 75, gk: 74 },
-  { id: 'cupngy',  name: '名古屋ライトニング', short: 'NGY', main: '#ff7a00', sub: '#1a1a1a', gkc: '#3cb8ff', sp: 80, sh: 79, pa: 76, df: 74, gk: 73 },
-  { id: 'hiroshima', name: '広島ファルコンズ', short: 'HIR', main: '#8b1e3f', sub: '#f2c14e', gkc: '#3cb8ff', sp: 78, sh: 80, pa: 75, df: 73, gk: 77 },
-  { id: 'saitama', name: 'さいたまウルブズ', short: 'SAI', main: '#0b1f4d', sub: '#4fc3f7', gkc: '#ffd400', sp: 74, sh: 73, pa: 77, df: 80, gk: 79 },
-  { id: 'chiba',   name: '千葉サンライズ',   short: 'CHI', main: '#f15bb5', sub: '#ffffff', gkc: '#2ee59d', sp: 81, sh: 75, pa: 73, df: 71, gk: 72 },
-  { id: 'kyoto',   name: '京都ナイツ',       short: 'KYO', main: '#1c1c1c', sub: '#b5e61d', gkc: '#ff3d7f', sp: 75, sh: 77, pa: 80, df: 76, gk: 74 },
+  // 2026-11-10 新モード担当：ふつうの版の12チームは、Fリーグ F1 の12クラブの地域・今季の順位（強さのじゅん）・色の雰囲気に「にている」架空のチーム。
+  // 愛称・選手の名前はぜんぶ作りもの（本物の選手と同じ名前・1文字ちがいの名前にならないように調べてある）。id は前のまま（セーブがこわれない）。
+  // names：選手14人（0〜1 ゴレイロ、2〜13 フィールド。カタカナ1語は外国人選手）
+  { id: 'tokyo', name: '品川クロウズ', short: 'SNG', main: '#1f1f1f', sub: '#e6e6e6', gkc: '#ff7a00', sp: 82, sh: 83, pa: 83, df: 79, gk: 80,   // 品川・強さ3番目
+    names: ['青木 悠斗', '岡本 大和', '篠原 航', 'エヂソン', 'マテウス', 'ブルーノ', '西田 智也', '三浦 歩夢', '望月 大輝', '今井 亮太', '栗原 誠', '千葉 尚人', '堀 匠', '吉川 和真'] },
+  { id: 'osaka', name: '大阪ブレイズ', short: 'OSA', main: '#f39a1e', sub: '#1b2b55', gkc: '#2ee59d', sp: 79, sh: 76, pa: 75, df: 74, gk: 76,   // 大阪・強さ9番目
+    names: ['荒木 俊', '金子 碧', '杉山 雄大', '服部 陽向', '村田 奏太', 'ヴィトル', '藤本 拓真', '内田 蒼', '坂口 遼', '永井 直樹', '松井 慶', '大塚 光', '石井 涼介', '久保 瑞樹'] },
+  { id: 'sapporo', name: '北海道スノウフォックス', short: 'HKD', main: '#2f9bd8', sub: '#ffffff', gkc: '#ff7a00', sp: 74, sh: 73, pa: 74, df: 74, gk: 73,   // 北海道・強さ12番目
+    names: ['竹内 拓斗', '平野 颯', '山崎 祐介', '秋山 颯太', '小野 琉生', '野村 海斗', '水野 晴人', '辻 優希', '岩崎 隼', '小島 啓太', '土屋 圭吾', '本田 朝陽', '渡部 一輝', '飯田 玲央'] },
+  { id: 'fukuoka', name: '北九州アイアンズ', short: 'KKY', main: '#b58a2e', sub: '#1a1a1a', gkc: '#6a3cff', sp: 78, sh: 77, pa: 76, df: 77, gk: 76,   // 北九州・強さ8番目
+    names: ['川口 律希', '関口 悠斗', '浜田 大和', '森田 航', '河合 智也', 'チアゴ', '大野 歩夢', '桜井 大輝', '丸山 誠', '菅原 尚人', '市川 匠', '熊谷 和真', '田村 俊', '福田 碧'] },
+  { id: 'sendai', name: '長野アルペンズ', short: 'NGN', main: '#a4141d', sub: '#1a1a1a', gkc: '#ffd400', sp: 74, sh: 75, pa: 74, df: 75, gk: 74,   // 長野・強さ11番目
+    names: ['横田 雄大', '浅野 陽向', '片山 奏太', 'ジョアン', '白石 拓真', 'ダニーロ', '橋本 蒼', '宮本 遼', '矢野 直樹', '上野 慶', '後藤 光', '長尾 涼介', '増田 瑞樹', '新井 拓斗'] },
+  { id: 'kobe', name: '墨田リバーズ', short: 'SMD', main: '#8c2231', sub: '#ffffff', gkc: '#ffd400', sp: 81, sh: 79, pa: 80, df: 76, gk: 77,   // 墨田・強さ6番目
+    names: ['池田 颯', '北村 祐介', '高木 颯太', '早川 琉生', '青木 海斗', '岡本 晴人', '篠原 優希', '西田 隼', '三浦 啓太', '望月 圭吾', '今井 朝陽', '栗原 一輝', '千葉 玲央', '堀 律希'] },
+  { id: 'cupyoko', name: '湘南シーガルズ', short: 'SHN', main: '#6cbf3f', sub: '#0b3d91', gkc: '#ff4fa0', sp: 77, sh: 75, pa: 76, df: 73, gk: 74,   // 湘南・強さ10番目
+    names: ['吉川 悠斗', '荒木 大和', '金子 航', '杉山 智也', '服部 歩夢', 'ギリェルメ', '村田 大輝', '藤本 亮太', '内田 誠', '坂口 尚人', '永井 匠', '松井 和真', '大塚 俊', '石井 碧'] },
+  { id: 'cupngy', name: '名古屋ライトニング', short: 'NGY', main: '#d8232a', sub: '#ffffff', gkc: '#ffd400', sp: 86, sh: 86, pa: 85, df: 82, gk: 81,   // 名古屋・強さ1番目
+    names: ['久保 雄大', '竹内 陽向', '平野 奏太', 'ガブリエウ', 'ヘナン', 'エリキ', '山崎 拓真', '秋山 蒼', '小野 遼', '野村 慶', '水野 光', '岩崎 瑞樹', '小島 拓斗', '土屋 颯'] },
+  { id: 'hiroshima', name: '大分ブレイカーズ', short: 'OIT', main: '#e5580c', sub: '#14213d', gkc: '#2ee59d', sp: 80, sh: 78, pa: 79, df: 81, gk: 80,   // 大分・強さ5番目
+    names: ['本田 祐介', '渡部 颯太', '飯田 琉生', '川口 健斗', '関口 海斗', '浜田 晴人', '森田 優希', '河合 隼', '大野 啓太', '桜井 圭吾', '中島 朝陽', '菅原 玲央', '市川 律希', '熊谷 悠斗'] },
+  { id: 'saitama', name: '立川スカイホークス', short: 'TCK', main: '#2451a8', sub: '#ffffff', gkc: '#ff3d7f', sp: 76, sh: 75, pa: 78, df: 81, gk: 79,   // 立川・強さ7番目
+    names: ['田村 大和', '福田 航', '横田 智也', '浅野 歩夢', '片山 大輝', 'ドウグラス', '白石 亮太', '橋本 誠', '宮本 尚人', '矢野 匠', '上野 和真', '後藤 俊', '長尾 碧', '増田 雄大'] },
+  { id: 'chiba', name: '浦安ドルフィンズ', short: 'URY', main: '#8f1d34', sub: '#e0b84c', gkc: '#3cb8ff', sp: 81, sh: 80, pa: 81, df: 80, gk: 79,   // 浦安・強さ4番目
+    names: ['新井 陽向', '池田 奏太', '北村 拓真', 'ジエゴ', '高木 蒼', 'パブロ', '早川 遼', '青木 慶', '岡本 光', '篠原 涼介', '西田 瑞樹', '三浦 拓斗', '望月 颯', '今井 祐介'] },
+  { id: 'kyoto', name: '町田ホーネッツ', short: 'MCD', main: '#f5c400', sub: '#1a1a1a', gkc: '#2ee59d', sp: 84, sh: 85, pa: 82, df: 81, gk: 80,   // 町田・強さ2番目
+    names: ['栗原 颯太', '千葉 琉生', '堀 健斗', 'セルジオ', 'ウェリントン', 'タイナン', '吉川 海斗', '荒木 晴人', '金子 優希', '杉山 隼', '服部 啓太', '藤本 朝陽', '内田 一輝', '坂口 玲央'] },
 ];
 const TEAM_BY = Object.fromEntries(TEAMS.map(t => [t.id, t]));
 const teamPower = d => (d.sp + d.sh + d.pa + d.df + d.gk) / 5;
@@ -2697,7 +2711,8 @@ function makeRoster(def) {
   const fresh = d => ({ ...d, st: { ...d.st }, energy: 100, yel: 0, sent: false });
   if (def.roster && def.roster.sets) return { gk: def.roster.gk.map(fresh), sets: def.roster.sets.map(st => st.map(fresh)) };
   const ti = Math.max(0, TEAMS.findIndex(t => t.id === def.id)) + (def.ni || 0), r = () => rand(-4, 4);   // ni：トーナメントだけのチームは、名前がほかのチームとかぶらないようにずらす
-  const gen = (pos, j, num, key, w) => { const tr = genTraits(pos, w ? 1 : 2); const d = fresh({ key, name: NAMES[(ti * 14 + j) % NAMES.length], full: NAMES[(ti * 14 + j) % NAMES.length] + ' ' + GIVEN[(ti * 7 + j * 3) % GIVEN.length], num, pos, apt: tr.apt, skills: tr.skills, st: {
+  const gen = (pos, j, num, key, w) => { const tr = genTraits(pos, w ? 1 : 2); const nm = def.names && def.names[j];   // チームのデータに選手の名前（作りもの）があればそれを使う（2026-11-10 新モード担当）
+    const d = fresh({ key, name: nm ? nm.split(' ')[0] : NAMES[(ti * 14 + j) % NAMES.length], full: nm || NAMES[(ti * 14 + j) % NAMES.length] + ' ' + GIVEN[(ti * 7 + j * 3) % GIVEN.length], num, pos, apt: tr.apt, skills: tr.skills, st: {
     sp: def.sp + r() + (pos === 'ALA' ? 3 : 0) - w * 2, sh: def.sh + r() + (pos === 'PIVO' ? 5 : pos === 'FIXO' ? -4 : 0) - w * 2,
     pa: def.pa + r() - w, df: def.df + r() + (pos === 'FIXO' ? 6 : pos === 'PIVO' ? -5 : 0) - w, gk: pos === 'GK' ? def.gk - w * 3 : 40,
     ph: (def.df + def.sh) / 2 + PH_MOD[pos] + rand(-6, 6) } }); d.style = pickStyle(pos, d.st); if (pos === 'GK') Object.assign(d, gkBody()); return d; };
