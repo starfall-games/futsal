@@ -906,6 +906,13 @@ const TEAMS = [
   { id: 'fukuoka', name: '福岡ウェーブ',     short: 'FUK', main: '#00a7b5', sub: '#ffffff', gkc: '#ff3d7f', sp: 79, sh: 77, pa: 81, df: 77, gk: 76 },
   { id: 'sendai',  name: '仙台サンダー',     short: 'SEN', main: '#ffd400', sub: '#1a1a1a', gkc: '#6a3cff', sp: 76, sh: 72, pa: 72, df: 79, gk: 72 },
   { id: 'kobe',    name: '神戸フェニックス', short: 'KOB', main: '#7b2cbf', sub: '#ffd166', gkc: '#00d084', sp: 83, sh: 78, pa: 77, df: 70, gk: 70 },
+  // ↓ 2026-11-10 新モード担当：Fリーグ（F1）と同じ12チームにするため6つ足した（ぜんぶ架空のチーム）。横浜・名古屋はトーナメント用だったチームと同じ id（前のセーブがそのまま読める）
+  { id: 'cupyoko', name: '横浜ブリーズ',     short: 'YOK', main: '#0b8f6a', sub: '#ffffff', gkc: '#ff4fa0', sp: 77, sh: 76, pa: 78, df: 75, gk: 74 },
+  { id: 'cupngy',  name: '名古屋ライトニング', short: 'NGY', main: '#ff7a00', sub: '#1a1a1a', gkc: '#3cb8ff', sp: 80, sh: 79, pa: 76, df: 74, gk: 73 },
+  { id: 'hiroshima', name: '広島ファルコンズ', short: 'HIR', main: '#8b1e3f', sub: '#f2c14e', gkc: '#3cb8ff', sp: 78, sh: 80, pa: 75, df: 73, gk: 77 },
+  { id: 'saitama', name: 'さいたまウルブズ', short: 'SAI', main: '#0b1f4d', sub: '#4fc3f7', gkc: '#ffd400', sp: 74, sh: 73, pa: 77, df: 80, gk: 79 },
+  { id: 'chiba',   name: '千葉サンライズ',   short: 'CHI', main: '#f15bb5', sub: '#ffffff', gkc: '#2ee59d', sp: 81, sh: 75, pa: 73, df: 71, gk: 72 },
+  { id: 'kyoto',   name: '京都ナイツ',       short: 'KYO', main: '#1c1c1c', sub: '#b5e61d', gkc: '#ff3d7f', sp: 75, sh: 77, pa: 80, df: 76, gk: 74 },
 ];
 const TEAM_BY = Object.fromEntries(TEAMS.map(t => [t.id, t]));
 const teamPower = d => (d.sp + d.sh + d.pa + d.df + d.gk) / 5;
@@ -6930,7 +6937,22 @@ function camLabel() { lockUI(); const b = document.getElementById('p-cam'); b.st
 document.getElementById('p-cam').onclick = () => { Sound.play('click'); settings.fpv = settings.fpv === false; saveSettings(); camLabel(); };
 function endToMenu() { clearMatch(); MODE = 'menu'; PAUSED = false; Sound.crowdTo(0, 0.5); }
 
-// ----- リーグ戦（6チームの総当たり、5試合） -----
+// ----- リーグ戦（総当たり1回ずつ。ふつうの版は12チーム＝11試合。2026-11-10 までは6チーム＝5試合） -----
+// ★ リーグに出るチームは、外から入れかえられる（Fリーグ版の F1・F2 など）：
+//   LEAGUE_POOL ＝ null（ふつう）／ チームidの配列 ／ (自分のチームid) => チームidの配列
+//   null のときは leaguePool() が決める：チームに div（F1・F2 など）があれば、自分と同じ div のチームだけ
+let LEAGUE_POOL = null;
+function leaguePool(me) {
+  if (typeof LEAGUE_POOL === 'function') return LEAGUE_POOL(me);
+  if (Array.isArray(LEAGUE_POOL)) return LEAGUE_POOL.slice();
+  const div = (TEAM_BY[me] || {}).div || TEAMS[0].div;
+  return TEAMS.filter(t => !div || t.div === div).map(t => t.id);
+}
+// 終わったときのごほうび（チームが多いほど、試合が多いので少し多め）
+function leagueBonus(rank, n) {
+  if (n <= 6) return rank === 1 ? 500 : rank <= 3 ? 200 : 50;   // 前の6チームのリーグ（セーブの途中のもの）は前のまま
+  return rank === 1 ? 900 : rank <= 3 ? 400 : rank <= Math.ceil(n / 2) ? 150 : 60;
+}
 let league = store.get('futsal-league', null);
 const saveLeague = () => store.set('futsal-league', league);
 function makeFixtures(ids) { // 総当たりの組み合わせ（サークル方式）。クラブの数が奇数のときは、毎節1クラブがお休み
@@ -6942,8 +6964,8 @@ function makeFixtures(ids) { // 総当たりの組み合わせ（サークル方
   return rounds;
 }
 function startLeague() {
-  let ids = TEAMS.map(t => t.id).sort(() => Math.random() - 0.5);
-  if (settings.team === 'my') ids = ['my', ...ids.slice(0, 5)];
+  let ids = leaguePool(settings.team).sort(() => Math.random() - 0.5);
+  if (!ids.includes(settings.team)) ids = [settings.team, ...ids.slice(0, ids.length - 1)];   // マイチームなど一覧にないチーム：1つと入れかえて、チームの数は同じに
   const others = ids.filter(i => i !== settings.team);
   league = { team: settings.team, diff: settings.diff, len: settings.len, round: 0, fixtures: makeFixtures([settings.team, ...others]), table: {}, log: [] };
   for (const id of ids) league.table[id] = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
@@ -6974,7 +6996,7 @@ function openLeague() {
   let html = '';
   if (done) {
     const rank = sortedTable().findIndex(r => r[0] === league.team) + 1;
-    if (!league.bonus) { league.bonus = rank === 1 ? 500 : rank <= 3 ? 200 : 50; addCoins(league.bonus); saveLeague(); }
+    if (!league.bonus) { league.bonus = leagueBonus(rank, Object.keys(league.table).length); addCoins(league.bonus); saveLeague(); }
     html += `<div style="text-align:center;font-size:20px;font-weight:900;margin-bottom:8px">${rank === 1 ? '🏆 優勝！おめでとう！' : 'リーグ終了！ ' + rank + '位'}　🪙 +${league.bonus}</div>`;
   } else {
     let skipped = 0;   // 自分のクラブがお休みの節は、ほかの試合だけ進める
