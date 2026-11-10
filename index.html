@@ -1502,11 +1502,23 @@ const Sound = {
       const name = g[1], lines = [
         [pick(['ゴーーーーーーール！', 'ゴーーーーール！ ゴーーール！', 'ゴーーール！ ゴール！ ゴール！ ゴーーール！']), 5, 1.3, 1],
         [pick(['決めたーーーっ！', 'なんというシュートだーー！', 'やったーーー！', 'ネットを突きさしたーー！', '入ったーー！ 入ったーー！', '信じられないシュートだーー！']), 4, 1.5, 1],
-        [pick([name + 'ーー！ ' + name + 'ーー！', name + '！ やってくれたーー！', name + '！ これがエースだーー！']), 4, 1.4, 1]];
-      if (Math.random() < 0.7) lines.push([pick(['会場が、ゆれているーー！', 'もう、だれにも止められない！', 'すばらしいゴールです！']), 3, 1.45, 1]);
+        ];
+      const gi = this.goalInfo();
+      if (gi) { // チーム名を入れて、だれが決めたか → 点の状況（ユーザーの希望「決まった時にチーム名も自然な流れで」）
+        const T = gi.team;
+        lines.push([pick(['決めたのは、' + T + 'の' + name + '！', T + 'の' + name + 'ーー！', name + '！ ' + T + 'に、大きな1点！']), 4, 1.4, 1]);
+        const sit = { first: [T + '、先制ーー！', T + 'が、先に点を取りましたーー！'], tie: [T + '、追いつきましたーー！', T + '、同点だーー！'],
+          ahead: [T + '、勝ち越しーー！', T + '、ついにリードだーー！'], more: [T + '、リードを広げるーー！', T + '、突きはなしたーー！'],
+          close: [T + '、1点差にせまるーー！', T + '、反撃の1点！'], back: [T + '、反撃の1点！', T + '、あきらめない！'] }[gi.kind];
+        lines.push([pick(sit) + ' ' + gi.a + '対' + gi.b + '！', 3, 1.3, 1]);   // 点数は、点の状況のあとにくっつけて読む（点数だけを1つで読ませない）
+      } else {   // チームが分からないとき（オンラインのゲストで、まだ点の情報が届いていないときなど）は、前の言い方
+        lines.push([pick([name + 'ーー！ ' + name + 'ーー！', name + '！ やってくれたーー！', name + '！ これがエースだーー！']), 4, 1.4, 1]);
+        if (Math.random() < 0.7) lines.push([pick(['会場が、ゆれているーー！', 'もう、だれにも止められない！', 'すばらしいゴールです！']), 3, 1.45, 1]);
+      }
       return { cut: true, lines };
     }
-    if (/^オウンゴール/.test(text)) return { cut: true, lines: [['あーーーーっと！', 4, 1.25, 1], ['オウンゴーール！', 3, 1.2, 1], [pick(['これはいたいーー！', 'なんということだ…']), 0, 0.82, 0.9]] };
+    if (/^オウンゴール/.test(text)) { const gi = this.goalInfo();
+      return { cut: true, lines: [['あーーーーっと！', 4, 1.25, 1], ['オウンゴーール！', 3, 1.2, 1], gi ? [gi.team + 'に、点が入ります。' + gi.a + '対' + gi.b + '。', 2, 1.0, 0.9] : [pick(['これはいたいーー！', 'なんということだ…']), 0, 0.82, 0.9]] }; }
     if ((g = /^スーパーセーブ！\s*(.+?)！?$/.exec(text))) return { cut: true, lines: [[pick(['止めたーーーっ！', 'とめたーーー！ とめたーー！']), 5, 1.4, 1], ['スーパーセーブだーー！', 4, 1.4, 1], [g[1] + '！ ' + pick(['なんという反応だーー！', 'ゴールを守りきったー！', '神セーブだーー！']), 3, 1.35, 1]] };
     if (/^ナイスセーブ/.test(text)) return { cut: false, lines: [[pick(['ナイスセーブ。', 'うまく止めました。', 'キーパー、止めました。']), 2, 1.05, 0.9]] };   // ふつうの場面はおちついたまま
     if (/^おしい！\s*(ポスト|クロスバー)/.test(text)) { const w = m(/(ポスト|クロスバー)/);
@@ -1576,6 +1588,21 @@ const Sound = {
     if (play) { const rm = 20 - Math.floor(S.clock / S.halfLen * 20), h = S.half === 1 ? '前半' : '後半';
       if (rm !== W.rm) { if (W.rm !== null && (rm === 10 || rm === 5)) calm(h + '、のこり' + rm + '分です。', true); if (W.rm !== null && rm === 1) say('残り1分！ ' + h + '、のこりわずか！'); W.rm = rm; } }
   },
+  // 実況で読むチーム名：読み上げがこわれないように、読めない記号（絵文字など）をとり、長すぎる名前は短くする（2026-11-10 音担当）
+  //  ・のこす：ひらがな・カタカナ・漢字・英字・数字・「ー」「・」「.」・空白（「Y.S.C.C.横浜」「立川アスレティックFC」などはそのまま）
+  //  ・12文字より長いときは、「・」か空白の所で切る。なければ12文字まで
+  sayName(n) {
+    let s = String(n || '').replace(/[^\p{L}\p{N}ー・.\s]/gu, '').replace(/\s+/g, ' ').trim();
+    if (s.length > 12) { const k = Math.max(s.lastIndexOf('・', 12), s.lastIndexOf(' ', 12)); s = k >= 4 ? s.slice(0, k) : s.slice(0, 12); }
+    return s;
+  },
+  // いま決まったゴールの、チーム名と点の状況。分からなければ null
+  goalInfo() {
+    if (typeof S === 'undefined' || !S || !S.goalTeam || typeof teams === 'undefined' || teams.length < 2) return null;
+    const t = S.goalTeam, o = t.opp || teams.find(x => x !== t), name = this.sayName(t.def && t.def.name); if (!o || !name) return null;
+    const a = t.score, b = o.score, kind = a === 1 && b === 0 ? 'first' : a === b ? 'tie' : a === b + 1 ? 'ahead' : a > b ? 'more' : a === b - 1 ? 'close' : 'back';
+    return { team: name, a, b, kind };
+  },
   say(text) {
     if (!settings.voice || !window.speechSynthesis || !text || document.hidden) return;
     const big = text[0] === '!'; if (big) text = text.slice(1);
@@ -1605,6 +1632,7 @@ const Sound = {
       const rate = Math.max(0.9, Math.min(1.3, lv >= 5 ? Math.min(rate0, 0.95) : rate0));   // 速さも、かわりすぎないように 0.9〜1.3
       // 「、」「！」で区切るが、6文字より短いかたまり（「田中、」など）は次とくっつける。名前だけを1つで読ませると、読み方が変わって別の声のように聞こえるため
       const phr = (p.match(/[^、！!？?]+[、！!？?]*/g) || [p]).map(s => s.trim()).filter(Boolean).reduce((a, s) => { if (a.length && a[a.length - 1].length < 6) a[a.length - 1] += s; else a.push(s); return a; }, []);
+      if (phr.length > 1 && phr[phr.length - 1].length < 6) phr[phr.length - 2] += phr.pop();   // 最後のかたまりが短いとき（「田中！」など）も、前とくっつける
       phr.forEach((s, k) => {
         // 抑揚：こうふんの所は「高い→少し下がる→最後の！でまた上がる」、おちついた所は「少し高く始めて、だんだん下がる」
         const last = k === phr.length - 1, up = lv >= 3;
