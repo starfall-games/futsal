@@ -52,13 +52,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0f1e;color:#fff;f
 /* ===== 試合中の表示（HUD） ===== */
 #hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:5}
 body.playing #hud{display:block}
-#scorebar{position:absolute;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:stretch;background:rgba(8,12,28,.85);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.4);font-weight:800;white-space:nowrap}
-.sb-team{display:flex;align-items:center;gap:6px;padding:5px 9px;font-size:14px;letter-spacing:1px}
-.sb-f{font-size:10px;color:#ffb347;min-width:0}
-.sb-chip{width:10px;height:20px;border-radius:3px;border:1px solid #fff6}
-.sb-score{padding:4px 10px;font-size:21px;background:#fff;color:#0b1020;font-variant-numeric:tabular-nums;display:flex;align-items:center}
-.sb-time{padding:4px 9px;font-size:14px;background:#1e2a55;display:flex;flex-direction:column;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;min-width:58px;line-height:1.1}
-.sb-time small{font-size:9px;opacity:.75}
+/* 得点ボード（2026-11-09 スタジアム担当）：テレビ中継のような、左上の細長い表示。[前半/後半][残り時間][チーム＋ファウル][点数][チーム＋ファウル] */
+#scorebar{position:absolute;top:max(8px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));display:flex;align-items:stretch;height:30px;font-weight:800;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.45);border-radius:3px;overflow:hidden;font-variant-numeric:tabular-nums}
+.sb-half{display:flex;align-items:center;padding:0 8px;background:#0b0f16;color:#fff;font-size:12px;letter-spacing:1px}
+.sb-time{display:flex;align-items:center;padding:0 9px;background:#123d2c;color:#fff;font-size:17px;letter-spacing:.5px;min-width:56px;justify-content:center}
+.sb-team{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 9px 3px;background:#16357a;color:#fff;font-size:14px;letter-spacing:1px;min-width:52px;line-height:1.05}
+.sb-chip{position:absolute;left:0;right:0;bottom:0;height:3px}
+.sb-pips{display:flex;gap:2px;margin-top:2px;height:3px}
+.sb-pips i{display:block;width:6px;height:3px;background:rgba(255,255,255,.22);border-radius:1px}
+.sb-pips i.on{background:#ffd23a}
+.sb-team.f5{animation:sbF5 1s ease-in-out infinite alternate}
+.sb-team.f5 .sb-pips i.on{background:#ff5a3c}
+@keyframes sbF5{from{background:#16357a}to{background:#c2410c}}
+.sb-score{display:flex;align-items:center;padding:0 10px;background:#0a2550;color:#fff;font-size:19px;border-left:2px solid #f59e0b;border-right:2px solid #f59e0b}
+#minimap{top:calc(max(8px,env(safe-area-inset-top)) + 38px)}
+#stam{top:calc(max(8px,env(safe-area-inset-top)) + 122px)}
 #msg{position:absolute;top:30%;left:0;right:0;text-align:center;font-size:clamp(40px,calc(10*var(--vw)),96px);font-weight:900;font-style:italic;letter-spacing:4px;text-shadow:0 4px 0 rgba(0,0,0,.35),0 0 30px rgba(255,210,0,.6);opacity:0;transform:scale(.6);transition:opacity .25s,transform .25s}
 #msg.on{opacity:1;transform:scale(1)}
 #msg small{display:block;font-size:clamp(14px,calc(3.2*var(--vw)),24px);font-style:normal;letter-spacing:1px;margin-top:6px;text-shadow:0 2px 6px rgba(0,0,0,.7)}
@@ -380,10 +388,11 @@ body.forceLand{position:fixed;top:0;left:0;overflow:hidden;transform-origin:0 0}
   <canvas id="minimap" width="300" height="150"></canvas>
   <div id="stam"><i></i></div>
   <div id="scorebar">
-    <div class="sb-team"><span class="sb-chip" id="chip0"></span><span id="name0">HOME</span><small class="sb-f" id="f0"></small></div>
+    <div class="sb-half" id="half">前半</div>
+    <div class="sb-time" id="clock">20:00</div>
+    <div class="sb-team" id="sbt0"><span id="name0">HOME</span><span class="sb-pips" id="f0"></span><span class="sb-chip" id="chip0"></span></div>
     <div class="sb-score" id="score">0 - 0</div>
-    <div class="sb-team"><small class="sb-f" id="f1"></small><span id="name1">AWAY</span><span class="sb-chip" id="chip1"></span></div>
-    <div class="sb-time"><span id="clock">20:00</span><small id="half">前半</small></div>
+    <div class="sb-team" id="sbt1"><span id="name1">AWAY</span><span class="sb-pips" id="f1"></span><span class="sb-chip" id="chip1"></span></div>
   </div>
   <div id="toast"></div>
   <div id="msg"></div>
@@ -1873,21 +1882,17 @@ function areaPath(g, s) { // ペナルティエリア（ポストを中心にし
 function courtTexture() {
   const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 1024;
   const g = cv.getContext('2d'); const sx = 2048 / 44, sy = 1024 / 24;
-  g.fillStyle = '#1b4a8a'; g.fillRect(0, 0, 2048, 1024);   // コートの外は青
+  // 2026-11-09 スタジアム担当：本物の体育館アリーナのような、緑のコートに白線（まわりも緑の床）
+  g.fillStyle = '#2f9e6e'; g.fillRect(0, 0, 2048, 1024);   // コートの外も緑（少しこい）
   g.setTransform(sx, 0, 0, sy, 22 * sx, 12 * sy);           // ここからはメートルで描ける
-  for (let z = -HALF_W; z < HALF_W; z += 0.25) {             // 木の板
-    let x = -HALF_L;
-    while (x < HALF_L) {
-      const len = rand(1.5, 4);
-      g.fillStyle = `hsl(${28 + Math.random() * 6},${48 + Math.random() * 10}%,${50 + Math.random() * 8}%)`;
-      g.fillRect(x, z, Math.min(len, HALF_L - x), 0.25);
-      g.fillStyle = 'rgba(70,35,10,.35)'; g.fillRect(x, z, 0.02, 0.25);
-      x += len;
-    }
-    g.fillStyle = 'rgba(70,35,10,.25)'; g.fillRect(-HALF_L, z, HALF_L * 2, 0.012);
-  }
-  for (const s of [-1, 1]) { g.fillStyle = 'rgba(25,85,170,.55)'; areaPath(g, s); g.fill(); }
-  g.fillStyle = 'rgba(25,85,170,.35)'; g.beginPath(); g.arc(0, 0, 3, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3cb381'; g.fillRect(-HALF_L, -HALF_W, HALF_L * 2, HALF_W * 2);   // コート
+  for (let i = 0; i < 1800; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.015)' : 'rgba(0,40,20,.018)'; g.fillRect(rand(-22, 22), rand(-12, 12), rand(0.6, 2.4), rand(0.6, 2.4)); }   // 床のむら（つや）
+  // ほかの競技の線（体育館なので、バスケ・バレー・バドミントンの線がうすく見える）
+  g.lineWidth = 0.05; g.strokeStyle = 'rgba(15,60,40,.42)';
+  for (const s of [-1, 1]) { g.strokeRect(s > 0 ? 1.5 : -14.9, -6.1, 13.4, 12.2); g.strokeRect(s > 0 ? 4 : -13, -3, 9, 6); }   // バドミントンのようなわく
+  g.beginPath(); g.moveTo(-9, -4.5); g.lineTo(9, -4.5); g.moveTo(-9, 4.5); g.lineTo(9, 4.5); g.moveTo(-9, -4.5); g.lineTo(-9, 4.5); g.moveTo(9, -4.5); g.lineTo(9, 4.5); g.stroke();   // バレーのコート
+  g.strokeStyle = 'rgba(230,120,40,.55)'; g.setLineDash([0.5, 0.35]); g.strokeRect(-14, -7.5, 28, 15); g.setLineDash([]);   // バスケの線（オレンジの点線）
+  g.strokeStyle = 'rgba(230,120,40,.45)'; for (const s of [-1, 1]) { g.beginPath(); g.arc(s * 14, 0, 6.75, s > 0 ? Math.PI / 2 : -Math.PI / 2, s > 0 ? Math.PI * 1.5 : Math.PI / 2); g.stroke(); }
   g.strokeStyle = '#fff'; g.lineWidth = 0.08; g.fillStyle = '#fff';
   g.strokeRect(-HALF_L, -HALF_W, HALF_L * 2, HALF_W * 2);
   g.beginPath(); g.moveTo(0, -HALF_W); g.lineTo(0, HALF_W); g.stroke();
@@ -1929,16 +1934,17 @@ function timekeeper(dt) {
 function domeCheck() { if (!domeDeco) return; const p = camera.position; domeDeco.visible = p.y < 22 && Math.abs(p.x) < 39 && Math.abs(p.z) < 30; }   // カメラが屋根より下・かべの内がわにいるときだけ
 const ARENA = {};   // アリーナのかべ・ライトの点・光る帯（buildArena で入れる。夜の照明・ライトショーで使う）。スタジアム担当 2026-10-20（とちゅうで宣言がぬけて開かなくなったのを、新モード担当が仮に直してくれた）
 function buildArena() {
-  const floor2 = new THREE.Mesh(new THREE.PlaneGeometry(100, 80), new THREE.MeshLambertMaterial({ color: 0x15203a }));
+  const floor2 = new THREE.Mesh(new THREE.PlaneGeometry(100, 80), new THREE.MeshLambertMaterial({ color: 0x2a8c60 }));   // 体育館の床（緑）
   floor2.rotation.x = -Math.PI / 2; floor2.position.y = -0.02; floor2.receiveShadow = true; scene.add(floor2);
   const court = new THREE.Mesh(new THREE.PlaneGeometry(44, 24), new THREE.MeshPhongMaterial({ map: courtTexture(), shininess: 70, specular: 0x2a2a2a }));
   court.rotation.x = -Math.PI / 2; court.receiveShadow = true; scene.add(court);
   // 広告ボード
-  const adTex = textTexture(1024, 64, (g, w, h) => {
-    const words = ['FUTSAL STRIKE', '⚽', 'STARFALL GAMES', '★', 'PLAY FAIR', '⚽'];
-    g.fillStyle = '#0d1b3d'; g.fillRect(0, 0, w, h);
-    g.font = 'bold 40px sans-serif'; g.textBaseline = 'middle';
-    let x = 10, i = 0; while (x < w) { const s = words[i++ % words.length]; g.fillStyle = i % 2 ? '#ffd400' : '#ffffff'; g.fillText(s, x, h / 2 + 2); x += g.measureText(s).width + 30; }
+  // コートのまわりの看板の列（2026-11-09：中継のように白い板がならぶ。会社名は全部 架空）
+  const adTex = textTexture(2048, 64, (g, w, h) => {
+    const ads = [['SORA DRINK', '#1e5bd8'], ['MIRAI 電機', '#d81e2a'], ['STARFALL GAMES', '#0b1020'], ['KAZE AIR', '#0e8a6a'], ['ほしぞら銀行', '#e07a00'], ['NOVA SPORTS', '#7a2fd8'], ['つばさ HOTELS', '#5a6b7a'], ['FUTSAL STRIKE', '#1e5bd8']];
+    const W = w / ads.length;
+    ads.forEach(([t, c], i) => { const x = i * W; g.fillStyle = '#f7f7f7'; g.fillRect(x, 0, W, h); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(x + W - 3, 0, 3, h);
+      g.fillStyle = c; g.fillRect(x + 12, h * 0.25, 16, h * 0.5); g.font = '900 34px sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(t, x + W / 2 + 10, h / 2 + 2, W - 50); });
   });
   adTex.wrapS = THREE.RepeatWrapping;
   const adMat = (rep) => { const t = adTex.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 1); return new THREE.MeshBasicMaterial({ map: t }); };
@@ -1946,7 +1952,7 @@ function buildArena() {
   const near = new THREE.Mesh(new THREE.BoxGeometry(46, 0.8, 0.1), adMat(3)); near.position.set(0, 0.4, 12.6); scene.add(near);   // 手前にも
   for (const s of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 25), adMat(1.6)); b.position.set(s * 23.2, 0.4, 0); scene.add(b); }
   // 観客席（だんだん）。ゴール裏はサポーター席（H＝ホーム側 x<0、A＝アウェイ側 x>0）、長い方は いろんな人
-  const standMat = new THREE.MeshLambertMaterial({ color: 0x2a3350 });
+  const standMat = new THREE.MeshLambertMaterial({ color: 0xc04a2c });   // 観客席のいす（本物の体育館アリーナのような、オレンジ・赤）
   const seats = [];
   const step = IS_TOUCH ? 0.68 : 0.56;
   for (let i = 0; i < 10; i++) {
@@ -2136,7 +2142,38 @@ function buildArena() {
   colorCrowd({ shirt: '#1f5fe0', shorts: '#ffffff' }, { shirt: '#e3342f', shorts: '#ffffff' }, 'HOME', 'AWAY');
   // ゴール
   for (const s of [-1, 1]) goals.push(buildGoal(s));
-  stageInit();   // 夜の照明・紙ふぶき・大きな旗の準備（スタジアムの演出）
+  stageInit();
+  arenaTV();   // 中継のような会場の小物（記録席・カメラマン・カーテン）   // 夜の照明・紙ふぶき・大きな旗の準備（スタジアムの演出）
+}
+// ----- 中継のような会場の小物（2026-11-09 スタジアム担当） -----
+// 手前のタッチラインの外に記録席（オフィシャルテーブル：係の人3人と、ファウルを知らせるランプ）、コーナーにカメラマン、かべに緑のカーテン
+function arenaTV() {
+  const g = new THREE.Group(); scene.add(g);
+  const tbl = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.72, 0.7), lam(0xf2f2f2)); tbl.position.set(0, 0.36, HALF_W + 1.55); g.add(tbl);
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.62), new THREE.MeshBasicMaterial({ map: textTexture(512, 76, (c, w, h) => { c.fillStyle = '#123d2c'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('OFFICIAL TABLE', w / 2, h / 2 + 2); }) }));
+  front.position.set(0, 0.36, HALF_W + 1.19); front.rotation.y = Math.PI; g.add(front);   // コートがわ（カメラから見ると うら）
+  for (const x of [-1.4, 0, 1.4]) { // 係の人（こちら向きにすわって、コートを見る）
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.58, 0.28), lam(0x1a2236)); b.position.set(x, 0.95, HALF_W + 2.05); g.add(b);
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), lam(new THREE.Color(SKINS[(Math.random() * SKINS.length) | 0]).getHex())); h.position.set(x, 1.38, HALF_W + 2.05); g.add(h);
+    const hr = new THREE.Mesh(new THREE.SphereGeometry(0.138, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), lam(0x1a1410)); hr.position.set(x, 1.4, HALF_W + 2.07); hr.rotation.x = 0.4; g.add(hr);
+  }
+  for (const x of [-1.9, 1.9]) { // ファウルのランプ（つくえの両はし）
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.3, 10), lam(0x888888)); st.position.set(x, 0.87, HALF_W + 1.55); g.add(st);
+    const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 10), new THREE.MeshBasicMaterial({ color: 0xffe9a8 })); lp.position.set(x, 1.08, HALF_W + 1.55); g.add(lp);
+  }
+  // カメラマン（手前の右のコーナー。三きゃくのカメラ）
+  { const c = new THREE.Group(); c.position.set(HALF_L - 1.5, 0, HALF_W + 1.7); c.rotation.y = Math.PI + 0.5;
+    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2, l = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.25, 4), lam(0x333333)); l.position.set(Math.cos(a) * 0.18, 0.6, Math.sin(a) * 0.18); l.rotation.set(Math.sin(a) * 0.28, 0, -Math.cos(a) * 0.28); c.add(l); }
+    const cam = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.6), lam(0x22252c)); cam.position.y = 1.35; c.add(cam);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.35, 10), lam(0x111111)); lens.rotation.x = Math.PI / 2; lens.position.set(0, 1.35, 0.45); c.add(lens);
+    const man = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.0, 0.28), lam(0x111111)); man.position.set(0, 0.95, -0.55); c.add(man);
+    const hd = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), lam(new THREE.Color(SKINS[1]).getHex())); hd.position.set(0, 1.58, -0.55); c.add(hd);
+    g.add(c); }
+  // かべの緑のカーテン（観客席の上。体育館らしく）
+  { const cur = textTexture(256, 64, (c, w, h) => { c.fillStyle = '#1f5a3a'; c.fillRect(0, 0, w, h); for (let x = 0; x < w; x += 16) { c.fillStyle = 'rgba(0,0,0,.22)'; c.fillRect(x, 0, 6, h); c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(x + 8, 0, 4, h); } });
+    cur.wrapS = THREE.RepeatWrapping; cur.repeat.set(10, 1);
+    for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(76, 3.2), new THREE.MeshLambertMaterial({ map: cur })); m.position.set(0, 17.6, s * 30.9); m.rotation.y = s > 0 ? Math.PI : 0; g.add(m); }
+    for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(58, 3.2), new THREE.MeshLambertMaterial({ map: cur })); m.position.set(s * 39.9, 17.6, 0); m.rotation.y = -s * Math.PI / 2; g.add(m); } }
 }
 // 観客の服の色：ゴール裏はそのチームのサポーターがかたまって、チームカラーの服を着る
 // ===== 横断幕：クラブのモットー（Fリーグ版は F.FILE のモットー。ふつうの版は応援の言葉）を、筆の字で =====
@@ -3117,6 +3154,8 @@ function animateReal(p, dt) {
   if (p.kickAnim > 0 && !m.kickOn) {
     m.kickOn = true;
     let k = isGK && p.kickType === 'throw' ? 'throw' : p.kickType === 'shot' ? (sp > 2.5 ? 'runShot' : 'shot') : 'pass';
+    if (k === 'throw' && (p.throwType ? p.throwType === 'under' : ball.v.y < 1.2)) { m.rollT = 0.62; k = 'gkIdle'; }
+    if (k === 'throw' || k === 'gkIdle') p.throwType = '';   // 2026-11-10：試合担当の p.throwType（'under'＝下手・'over'＝上から）を見る。使ったら消す（人が投げたときはボールの高さで決める）   // 低くころがす投げ方は、下手でころがす形（realRollPose）。高いボールは上から投げる動きのまま
     if (['header', 'volley', 'scissor'].includes(p.kickType) && REAL.clips[p.kickType]) k = p.kickType;   // ヘディング・ボレー   // キーパーも、足でけるときはフィールドの選手と同じける動き（手で投げる動きにしない）
     if (!isGK && p.kickType === 'shot' && p.kickClip === 'L' && REAL.clips[k + 'L']) k += 'L';      // 左足のシュート
     if (!isGK && p.kickType === 'pass' && p.kickClip && REAL.clips[p.kickClip]) k = p.kickClip;   // フックパス・左足パス・ピサーダ
@@ -3171,6 +3210,8 @@ function animateReal(p, dt) {
     if (m.sliding) { m.sliding = false; m.slideRec = 0.4; }
     if (m.slideRec > 0) { m.slideRec -= dt; realSlidePose(p, m, 1, clamp(m.slideRec / 0.4, 0, 1)); return; }
   }
+  if (m.rollT > 0) { realRollPose(p, m, dt); return; }   // キーパーの下手投げ
+  realBodyFeel(p, m, dt, isGK, sp);                      // 走り方・守備の構え・曲がるときのかたむき（本物の試合に近づける）
   if (S.phase === 'goal' && S.scorer === p && p.celebrate > 0 && m.bones.LeftArm) { realCelebrate(p, m); return; }   // 点を取った人のパフォーマンス
   if (!isGK && m.bones.LeftUpLeg && S.phase === 'play') {
     if (p.legPose > 0 && !(p.slide > 0)) { realGKPose(p, m, p.legPoseType, 1 - p.legPose / 0.45); return; }   // ボールが来た瞬間だけ足（体）をのばす。ふだんはジョグのまま
@@ -3190,6 +3231,13 @@ function animateReal(p, dt) {
     if (p.stance && !(p.dive > 0) && !(ball.owner === p) && S.phase === 'play' && sp < 3) { realGKPose(p, m, p.stance, 1); return; }
   }
   // ゴールのお祝い：走っている間は腕を上げる（骨を直接動かす）
+  const scr = S.scorer;
+  if (S.phase === 'goal' && p.team === S.goalTeam && p.celebrate > 0 && m.bones.LeftArm && scr && scr !== p && d2(p.pos, scr.pos) < 1.35) {
+    // 点を取った人のところに着いたら、だきつく（両うでで体をかかえる）。少し体をよせて、頭を下げる
+    armTo(m.bones.LeftArm, m.bones.LeftForeArm, 1, -0.4, 1.2, 0.95); armTo(m.bones.RightArm, m.bones.RightForeArm, 1, -0.4, -1.2, -0.95);   // うでをひねって、相手の体をつつむ形
+    if (m.bones.Spine) m.bones.Spine.rotateX(0.38); if (m.bones.Head) m.bones.Head.rotateX(0.15);
+    return;
+  }
   if (S.phase === 'goal' && p.team === S.goalTeam && p.celebrate > 0 && m.bones.LeftArm && m.cur !== 'victory') {
     m.bones.LeftArm.rotation.set(0, 0, 0.3); m.bones.RightArm.rotation.set(0, 0, -0.3);
     m.bones.LeftArm.rotateZ(1.2); m.bones.RightArm.rotateZ(-1.2);
@@ -3198,7 +3246,7 @@ function animateReal(p, dt) {
 // ----- 2026-11-09 選手ビジュアル担当：骨を「目当ての形」へ k の分だけ近づける（動きのデータとなめらかにまぜる） -----
 const BT_O = new THREE.Object3D();
 function boneTo(bone, k, x, y, z, order) { if (!bone || k <= 0) return; BT_O.rotation.set(x, y, z, order || 'XYZ'); bone.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); }
-function armTo(A, F, k, x, z, fz) { if (!A) return; BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateX(x); BT_O.rotateZ(z); A.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); if (F) { BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateZ(fz || 0); F.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); } }
+function armTo(A, F, k, x, z, fz, y) { if (!A) return; BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateX(x); BT_O.rotateZ(z); if (y) BT_O.rotateY(y); A.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); if (F) { BT_O.rotation.set(0, 0, 0); BT_O.quaternion.identity(); BT_O.rotateZ(fz || 0); F.quaternion.slerp(BT_O.quaternion, Math.min(1, k)); } }
 // キーパーの横っとび：コート（シュートを打つ人）の方を向いたまま、横へたおれこむように飛ぶ
 //  u：0→1 飛んでいる進み具合　rec：着地のあとの起き上がり（1→0）。m.diveSide：+1 なら体の左（ローカル +x）へ
 function realDivePose(p, m, u, rec) {
@@ -3223,6 +3271,43 @@ function realDivePose(p, m, u, rec) {
   boneTo(tu, k, Math.PI + 0.35, 0, out(tu) * 0.05); boneTo(tl, k, -0.65, 0, 0);
   if (b.Spine) b.Spine.rotateZ(-s * 0.18 * k);   // 体を少しそらして、手を遠くへ
   if (b.Head) b.Head.rotateZ(s * roll * 0.35);   // 目はボールを見たまま（頭はあまりたおさない）
+}
+// キーパーの下手投げ：ボウリングのように、左足を前にふみこんで体を低くし、右手を後ろから前へふってころがす
+function realRollPose(p, m, dt) {
+  const b = m.bones; m.rollT -= dt; const u = clamp(1 - m.rollT / 0.62, 0, 1);
+  const k = Math.min(1, u / 0.15) * Math.min(1, (1 - u) / 0.22);
+  m.root.position.y = -0.3 * k;
+  boneTo(b.LeftUpLeg, k, Math.PI + 0.95, 0, -0.1); boneTo(b.LeftLeg, k, -1.05, 0, 0);     // 前の足：ふみこむ
+  boneTo(b.RightUpLeg, k, Math.PI - 0.35, 0, 0.12); boneTo(b.RightLeg, k, -1.0, 0, 0);    // うしろの足：ひざを床の近くへ
+  if (b.Spine) b.Spine.rotateX(0.55 * k); if (b.Head) b.Head.rotateX(-0.35 * k);         // 前かがみで、前を見る
+  const sw = -1.15 + 2.1 * (1 - smooth(0.2, 0.62, u));                                     // 右うで：うしろ(+)→前(−)へ
+  armTo(b.RightArm, b.RightForeArm, k, 1.15, sw, -0.1); armTo(b.LeftArm, b.LeftForeArm, k, 0.55, 0.9, 0.35);
+}
+// 本物の試合に近づける体の感じ：曲がるときにかたむく・ブレーキでうしろへ・走ると前かがみ・ボールを見る・守備の低い構え
+function realBodyFeel(p, m, dt, isGK, sp) {
+  const b = m.bones; if (!b.Spine || !b.LeftUpLeg || !(dt > 0)) return;
+  const yaw = m.outer.rotation.y; let dy = yaw - (m.pyaw ?? yaw); while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2; m.pyaw = yaw;
+  const acc = (sp - (m.psp ?? sp)) / dt; m.psp = sp;
+  // 曲がるとき：曲がる方へ体をかたむける（速いほど大きく）
+  const want = sp > 1.2 ? clamp(-dy / dt * Math.min(sp, 6) * 0.016, -0.26, 0.26) : 0;
+  m.lean = (m.lean || 0) + (want - (m.lean || 0)) * Math.min(1, dt * 7);
+  if (Math.abs(m.lean) > 0.004) { m.root.rotation.z = m.lean; m.poseRoll = true; }
+  // 止まるとき（ブレーキ）：体をうしろへ
+  m.brake = (m.brake || 0) + ((acc < -7 && sp > 0.8 ? 1 : 0) - (m.brake || 0)) * Math.min(1, dt * 9);
+  if (m.brake > 0.02) b.Spine.rotateX(-0.22 * m.brake);
+  // 走るときは少し前かがみ（速いほど）。ボールを持っているときは ボールを見る
+  if (sp > 1.2) b.Spine.rotateX(clamp((sp - 1.2) * 0.035, 0, 0.16));
+  if (ball.owner === p && !isGK) { b.Spine.rotateX(0.08); if (b.Head) b.Head.rotateX(0.28); }
+  // 守備の低い構え：ボールを持った相手の近くでは、ひざを曲げてこしを落とし、うでを少し広げる
+  const o = ball.owner;
+  if (S && S.phase === 'play' && !isGK && o && o.team !== p.team && sp < 3.2) {
+    const k = clamp((5 - d2(p.pos, o.pos)) / 2.5, 0, 1) * (sp < 1.2 ? 0.85 : 0.4);
+    if (k > 0.02) {
+      boneTo(b.LeftUpLeg, k, Math.PI + 0.68, 0, -0.22); boneTo(b.LeftLeg, k, -1.15, 0, 0); boneTo(b.RightUpLeg, k, Math.PI + 0.68, 0, 0.22); boneTo(b.RightLeg, k, -1.15, 0, 0);
+      m.root.position.y = -0.15 * k; b.Spine.rotateX(0.24 * k);
+      armTo(b.LeftArm, b.LeftForeArm, 0.8 * k, 1.05, 0.35, 0.4); armTo(b.RightArm, b.RightForeArm, 0.8 * k, 1.05, -0.35, -0.4);
+    }
+  }
 }
 // スライディング：体がしずんで、片足をのばして地面をすべる。止まったら起き上がる
 //  u：0→1 すべっている進み具合　rec：起き上がり（1→0）
@@ -3291,8 +3376,8 @@ function realGKPose(p, m, type, k) {
   }
 }
 // ゴールパフォーマンスの種類と、そのとき出す字（2026-10-19 にゆりかご・ひざガッツポーズ・エンブレムを足して7種）
-const CEL_TYPES = ['slide', 'plane', 'jump', 'point', 'cradle', 'kneel', 'badge'];
-const CEL_NAMES = { slide: '🕺 ニースライディング！', plane: '✈️ 飛行機パフォーマンス！', jump: '🙌 ジャンプ！', point: '☝️ 天を指さす！', cradle: '👶 ゆりかごダンス！', kneel: '💪 ひざをついてガッツポーズ！', badge: '🛡 エンブレムをたたく！' };
+const CEL_TYPES = ['slide', 'plane', 'jump', 'point', 'cradle', 'kneel', 'badge', 'fist', 'fist', 'bench', 'huddle', 'huddle'];   // 2026-11-09：本物の試合に多い「こぶし」「みんなで集まる」は出やすく
+const CEL_NAMES = { slide: '🕺 ニースライディング！', plane: '✈️ 飛行機パフォーマンス！', jump: '🙌 ジャンプ！', point: '☝️ 天を指さす！', cradle: '👶 ゆりかごダンス！', kneel: '💪 ひざをついてガッツポーズ！', badge: '🛡 エンブレムをたたく！', fist: '✊ こぶしをにぎって雄たけび！', bench: '🙌 ベンチへかけよる！', huddle: '🤝 みんなで集まる！' };
 // リアルな選手（Mixamo）のゴールパフォーマンス：動きのデータの上から骨を直接動かす
 function realCelebrate(p, m) {
   const T = performance.now() / 1000 - (S.goalAt || 0), b = m.bones;
@@ -3342,6 +3427,18 @@ function realCelebrate(p, m) {
         if (b.Head) b.Head.rotation.set(-0.2, 0, 0);
       } else arms(-1.0, -1.0);
       break;
+    case 'fist': { // 両こぶしをにぎって、むねの前でぐっぐっ。顔を上げて雄たけび
+      const pump = Math.max(0, Math.sin(T * 8));
+      for (const [A, F, sd] of [[b.LeftArm, b.LeftForeArm, 1], [b.RightArm, b.RightForeArm, -1]]) { A.rotation.set(0, 0, 0); A.rotateX(1.15 - 0.3 * pump); A.rotateZ(0.35 * sd); F.rotation.set(0, 0, 0); F.rotateZ(1.7 * sd); }
+      if (b.Spine) b.Spine.rotateX(-0.12); if (b.Head) b.Head.rotation.set(-0.35, 0, 0);
+      break;
+    }
+    case 'bench': // ベンチへ走って、着いたら両手を大きく広げて上へ
+      if (T > 1.5) { const w = Math.sin(T * 7); arms(-1.15 + 0.15 * w, -1.15 - 0.15 * w); m.root.position.y = Math.abs(Math.sin(T * 6)) * 0.12; } else arms(-0.6, -0.6);
+      break;
+    case 'huddle': // 止まって両手を広げ、味方をむかえる（味方がだきついてくる）
+      if (T > 0.5) { arms(-0.25, -0.25); if (b.Head) b.Head.rotation.set(-0.25, 0, 0); } else arms(-0.8, -0.8);
+      break;
     default: // 天を指さす
       if (T > 0.9) { arms(-1.5, -1.5); if (b.Head) b.Head.rotation.set(-0.6, 0, 0); } else arms(-1.0, -1.0);
   }
@@ -3365,14 +3462,14 @@ function newMatch(cfg) {
   teams[0].human = cfg.auto ? null : 0;
   teams[1].human = cfg.mode === 'online' ? 1 : null;
   if (cfg.mode !== 'online') teams[1].ai = DIFF[cfg.diff];
-  for (const t of teams) Object.assign(t, { form: ['121', '121', '31', '22'][(Math.random() * 4) | 0], line: cfg.diff === 2 && Math.random() < 0.5 ? 1 : 0, atk: ['bal', 'pivo', 'side'][(Math.random() * 3) | 0], pp: false, gkRush: false, oneTwo: null });
+  for (const t of teams) Object.assign(t, { form: ['121', '121', '31', '22', '40'][(Math.random() * 5) | 0], line: cfg.diff === 2 && Math.random() < 0.5 ? 1 : 0, atk: ['bal', 'pivo', 'side'][(Math.random() * 3) | 0], pp: false, gkRush: false, oneTwo: null });
   for (const t of teams) { t.plays = randomPlays(cfg.diff); t.play = null; t.playCd = 0; t.mark = Math.random() < 0.5 ? 'man' : 'zone'; }
   if (cfg.mode === 'tutorial') teams.forEach(t => { t.form = '121'; t.line = 0; t.atk = 'bal'; t.plays = {}; });
   if (cfg.auto) teams[0].ai = DIFF[cfg.diff];
   for (const t of teams) {
     t.squad = makeRoster(t.def);
     if (cfg.lock && t.i === 0) lockInsert(t, cfg.lock);   // なりきり：自分の選手を名簿に入れる（自分のセットだけ）   // 14人（キーパー2人＋4人のセット3つ）
-    Object.assign(t, { curSet: 0, gkIdx: 0, setClock: 0, rot: null, fouls: 0, setMin: t.def.setMin ?? (cfg.mode === 'tutorial' ? 0 : 4) });
+    Object.assign(t, { curSet: 0, gkIdx: 0, setClock: 0, rot: null, fouls: 0, foulsH: [0, 0], setMin: t.def.setMin ?? (cfg.mode === 'tutorial' ? 0 : 4) });
     ROLES.forEach((role, j) => {
       const p = { team: t, role, idx: players.length, slot: j, energy: 100,
         pos: V3(), vel: V3(), fx: t.dir, fz: 0, tgt: null, kickCd: 0, tackleCd: 0, stun: 0, stamina: 100, think: 0, dribDir: { x: t.dir, z: 0 },
@@ -3794,6 +3891,7 @@ function kick(p, v) {
 function gainBall(p) {
   if (ball.fkPlan) { const plan = ball.fkPlan; ball.fkPlan = null; if (plan.shooter === p) { ball.owner = p; p.kickCd = 0; ball.indirect = null; S.fk = plan.F; fkShoot(p, plan.F); return; } }
   const prev = ball.lastTouch;
+  if (prev !== p.team) p.team.gainAt = S.time;   // 切りかえ：ボールをうばった時間（2026-11-09）
   if (ball.passBy) { const pb = ball.passBy; if (pb.team === p.team && pb !== p) { if (pb.ms) pb.ms.passOK++; ball.assistBy = pb; ball.assistAt = S.time; } ball.passBy = null; }   // パスが通った
   if (prev && prev !== p.team && p.ms && p.role !== 'GK') p.ms.tackles++;   // ボールをうばった（カット・こぼれ球）
   if (prev && prev !== p.team) ball.assistBy = null;
@@ -3909,6 +4007,7 @@ function doPass(p, dir, target, throwIt, o = {}) {
   }
   ball.through = through && !!target;   // スルーパス：受け手はボールの行き先へ先回りして走る（interceptPoint）
   if (human && through && target && !throwIt && p.team.controlled === p && !p.team.lockData) { ball.lobTo = target; setControlled(p.team, target); }   // 人が出したスルーパス：受け手へすぐカーソルを切りかえ、スティックをはなしていれば自動で走る（2026-11-08）
+  if (p.team.form === '40' && S.phase === 'play' && target && !throwIt && !through && p.role !== 'GK' && target.role !== 'GK') q4Rotate(p.team, p, target);   // クアトロのローテーション（2026-11-09）
   const t = p.team;   // 戦術のワンツー：パスを出した人が前へ走りこむ
   if (target && !through && !throwIt && p.role !== 'GK' && target.role !== 'GK' && !t.oneTwo && S.phase === 'play' && (p.pos.x - target.pos.x) * t.dir > -6
       && p.pos.x * t.dir > -8 && Math.random() < playLv(t, 'onetwo') * 0.5) {
@@ -4085,6 +4184,7 @@ function slideUpdate(p, dt) { // すべっている間
 function commitFoul(off, vic, behind) {
   const t = off.team, v = vic.team, pos = { x: vic.pos.x, z: vic.pos.z };
   t.fouls++; vic.stun = 1.0; vic.kickCd = 0.6;
+  (t.foulsH || (t.foulsH = [0, 0]))[(S.half || 1) - 1] = t.fouls;   // 累積ファウル：t.fouls＝今のハーフの数、t.foulsH＝[前半, 後半]（得点板用。6つ目から第2PK）（2026-11-09）
   S.phase = 'dead'; S.deadT = 1.8; ball.owner = null; ball.v.set(0, 0, 0); sfx('whistle', 1);
   let card = '';
   if (Math.random() < (behind ? 0.3 : 0.03)) { off.data.yel = (off.data.yel || 0) + 1; card = off.data.yel >= 2 ? 'red' : 'yellow'; }
@@ -4453,7 +4553,7 @@ function startPenalty(v, dist) { // PK（6m）・第2PK（10m）
 // キーパーが届くはば（m）：能力・身長・腕・脚の長さ・シュートのタイミングで決まる
 let MISS_K = 1.7;    // 枠の外へ外れる多さ（2026-10-15：5分ハーフで両チーム合計 平均6点くらいに）
 let GK_CROSS = 0.4, GK_CROSS_READ = 0.5;   // クロスのとき、キーパーがボールの落ちる所をどれだけ先読みするか（0＝しない・1＝落ちる所）・クロスを正しく読める割合（2026-10-20：ヘディングが36%も決まっていた → 読める割合 0.45で24%・0.55で12% → 0.5 で2割くらい。読めないときは前と同じく、クロスの通り道＝柱のそばへ動く）
-let GK_SCALE = 1.30;   // 全体の調整用（2026-10-15：1.38 で平均6点くらい → 2026-11-08：キーパーを少し弱く 1.24。CPU 30試合で平均6.63点・セーブ率84%、強さ2は6.40点 → 2026-11-09：ボールに行くのが1人だけの守りにしたら点が7点をこえたので 1.30）
+let GK_SCALE = 1.36;   // 全体の調整用（2026-10-15：1.38 で平均6点くらい → 2026-11-08：キーパーを少し弱く 1.24。CPU 30試合で平均6.63点・セーブ率84%、強さ2は6.40点 → 2026-11-09：ボールに行くのが1人だけの守りにしたら点が7点をこえたので 1.30 → 同じ日：キーパーの投げ方・切りかえ・クアトロで 7.3点になった。30試合ずつくらべて 1.36（1.36＝6.27点・1.40＝4.63点）。SHOT_RATE は変えていない）
 function gkReach(g, y, sh) {
   const d = g.data || {}, ht = (d.ht || 183) / 100, arm = d.arm || 1, leg = d.leg || 1;
   const T = sh ? sh.timing : 0.3, react = clamp((g.st.gk - 50) / 45, 0, 1.1);
@@ -4683,9 +4783,13 @@ function formTarget(p, attacking) {
   let [u, z] = F[p.role];
   if (attacking) {
     u = u + 5 + bu * 0.5; z = z * 1.3 + bz * 0.2;
-    if (t.form === '40' && p.role !== 'GK') { const a = S.time * 0.45 + p.slot * 1.57; z = Math.sin(a) * 7; u = -2 + bu * 0.45 + Math.cos(a) * 3; } // 4人がぐるぐる回る（ローテーション）
+    if (t.form === '40' && p.role !== 'GK') { // クアトロ（4-0）：4人が U の字にならぶ（後ろの2人・両サイドの2人）。パスを出した人がななめに走りこみ、ほかの人が1つずつずれて空いた場所をうめる（2026-11-09：前は4人が円をぐるぐる回っていた）
+      const k = q4Slot(t, p), Q4 = [[-0.5, -2.8], [4, -8], [4, 8], [-0.5, 2.8]], base = clamp(bu * 0.55 + 3, 0, 9.5);
+      u = base + Q4[k][0]; z = Q4[k][1] + clamp(bz * 0.15, -1, 1);
+      if (p.q4run && S.time < p.q4run.until) { u = Math.max(u, 14.5); z = p.q4run.z; }   // ダイアゴナル：ゴール前へななめに走りこむ
+    }
     else if (p.role === 'PIVO' && t.form !== '22') { u = Math.max(u, 11); z = -bz * 0.25; }
-    if (p.role === 'FIXO') u = Math.min(u, bu - 3);
+    if (p.role === 'FIXO' && t.form !== '40') u = Math.min(u, bu - 3);
     // プレースタイル：同じポジションでも動き方がちがう
     const sy = p.style;
     if (p.role === 'PIVO' && t.form !== '40') {
@@ -4698,9 +4802,9 @@ function formTarget(p, attacking) {
       else if (sy === 'inside') { z = side * 3.2; u += 1; }  // 中へ入る
       else if (sy === 'runner') u += 2.5;                    // 前のスペースへ
     }
-    if (p.role === 'FIXO') { if (sy === 'anchor') u = Math.min(u, bu - 5, 2); else if (sy === 'builder') u = Math.min(u + 2.5, bu - 1.5); }
-    if (t.atk === 'side' && p.role.startsWith('ALA')) { z = sgn(F[p.role][1]) * 8.6; u += 3; }       // パラレラ：サイドのライン ぞいを上がる
-    if (t.atk === 'pivo' && p.role === 'PIVO') { u = Math.max(u, 13); z = clamp(-bz * 0.15, -2, 2); } // ピヴォ当て：ピヴォはゴール前で待つ
+    if (p.role === 'FIXO' && t.form !== '40') { if (sy === 'anchor') u = Math.min(u, bu - 5, 2); else if (sy === 'builder') u = Math.min(u + 2.5, bu - 1.5); }
+    if (t.atk === 'side' && p.role.startsWith('ALA') && t.form !== '40') { z = sgn(F[p.role][1]) * 8.6; u += 3; }       // パラレラ：サイドのライン ぞいを上がる
+    if (t.atk === 'pivo' && p.role === 'PIVO' && t.form !== '40') { u = Math.max(u, 13); z = clamp(-bz * 0.15, -2, 2); } // ピヴォ当て：ピヴォはゴール前で待つ
     const rk = sy === 'post' ? 0.2 : sy === 'runner' ? 1.5 : 1;   // 張るピヴォはあまり動かない、裏へ走る人は大きく動く
     u += p.runU * rk; z += p.runZ * rk;
   } else {
@@ -4956,6 +5060,20 @@ function ppSwap(t) {
   bindData(g, cand[0]); const z = subZone(t.i); g.pos.set(z.x, 0, -HALF_W + 0.4); g.vel.set(0, 0, 0); g.hold = 0; g.dive = 0;
   return cand[0].name;
 }
+// クアトロ（4-0）の場所：0＝後ろ左・1＝左サイド・2＝右サイド・3＝後ろ右（2026-11-09）
+function q4Slot(t, p) {
+  if (!t.q4 || !t.q4.includes(p)) { const f = t.players.filter(q => q.role !== 'GK'), by = r => f.find(q => q.role === r); t.q4 = [by('FIXO'), by('ALA_L'), by('ALA_R'), by('PIVO')]; }
+  return Math.max(0, t.q4.indexOf(p));
+}
+function q4Rotate(t, p, r) { // パスを出した人がななめに走り、ほかの人が1つずつずれる（受けた人はそのまま）
+  q4Slot(t, p); const RING = [1, 0, 3, 2], ri = q => RING.indexOf(t.q4.indexOf(q));   // U の字を1周する順：左サイド→後ろ左→後ろ右→右サイド
+  const a = ri(p), b = ri(r); if (a < 0 || b < 0 || a === b || Math.random() > 0.6) return;
+  const k = (a - b + 4) % 4, dir = k === 1 ? 1 : k === 3 ? -1 : (Math.random() < 0.5 ? 1 : -1);
+  const seq = []; for (let i = 1; i < 4; i++) seq.push(t.q4[RING[(b + dir * i + 8) % 4]]);
+  const rest = seq.filter(q => q !== p).concat([p]);
+  for (let i = 1; i < 4; i++) t.q4[RING[(b + dir * i + 8) % 4]] = rest[i - 1];
+  if (!(t.human != null && t.controlled === p)) p.q4run = { until: S.time + 1.7, z: -sgn(p.pos.z || 1) * 1.6 };
+}
 function assignRoles() { // だれがボールを追うか・だれをマークするか
   for (const t of teams) {
     const field = t.players.filter(p => p.role !== 'GK' && !p.off);
@@ -5095,6 +5213,7 @@ function aiField(p, dt) {
     else tg = formTarget(p, ball.lastTouch === t);
   } else if (owner.team === t) {
     tg = formTarget(p, true);
+    if (S.time - (t.gainAt ?? -9) < 2.5 && (tg.x - p.pos.x) * t.dir > 2) urgent = true;   // 切りかえ：ボールをうばったら、すぐ前へ走る（2026-11-09）
     const dx = tg.x - owner.pos.x, dz = tg.z - owner.pos.z, d = Math.hypot(dx, dz);
     if (d < 4.5) { const k = 4.5 / (d || 1); tg = { x: owner.pos.x + dx * k, z: owner.pos.z + dz * k }; }  // ボールを持つ味方から少しはなれる
   } else if (owner.role === 'GK' && owner.hold > 0) { // 相手キーパーがボールを手で持っている → エリアの外で待つ
@@ -5156,6 +5275,9 @@ function celebrateMove(p, dt) {
       const tg = { x: d * 9, z: side * 8.5 };
       if (T < 1.0) moveTo(p, tg, true, dt); else moveTo(p, p.pos, false, dt); break;
     }
+    case 'fist': if (T < 1.1) moveTo(p, corner, true, dt); else moveTo(p, p.pos, false, dt); break;   // コーナーへ走って止まる
+    case 'bench': { const tg = { x: (p.team.i ? 1 : -1) * 5.2, z: -9.4 }; if (d2(p.pos, tg) > 0.6) moveTo(p, tg, true, dt); else moveTo(p, p.pos, false, dt); break; }   // 自分のベンチの前へ
+    case 'huddle': if (T < 0.5) moveTo(p, { x: p.pos.x + d * 1.5, z: p.pos.z * 0.8 }, true, dt); else moveTo(p, p.pos, false, dt); break;   // 少し走って止まる（みんなが集まる）
     default: if (T < 0.9) moveTo(p, corner, true, dt); else moveTo(p, p.pos, false, dt); break;   // 天を指さす
   }
 }
@@ -5208,6 +5330,9 @@ function celebratePose(p, m, side) {
         m.arms[0].sh.rotation.set(-2.5, 0, 0.5); m.arms[0].elbow.rotation.x = -0.2;                  // もう片方の手はサポーターへ
       }
       break;
+    case 'fist': { const pump = Math.max(0, Math.sin(T * 8)); m.arms.forEach((A, i) => { A.sh.rotation.set(-0.6 - 0.3 * pump, 0, side(i) * 0.4); A.elbow.rotation.x = -2.0; }); m.head.rotation.x = -0.35; break; }
+    case 'bench': if (T > 1.5) { m.arms.forEach((A, i) => { A.sh.rotation.set(-2.6, 0, side(i) * 0.6); A.elbow.rotation.x = -0.2; }); } break;
+    case 'huddle': if (T > 0.5) { m.arms.forEach((A, i) => { A.sh.rotation.set(-0.5, 0, side(i) * 1.3); A.elbow.rotation.x = -0.2; }); } break;
     default: // 天を指さす
       if (T > 0.9) { m.arms.forEach((A, i) => { A.sh.rotation.set(-2.95, 0, side(i) * 0.22); A.elbow.rotation.x = 0; }); m.head.rotation.x = -0.6; }
   }
@@ -5240,6 +5365,7 @@ function aiCarrier(p, dt) { // CPU がボールを持っているとき
       if (mk && md < 1.8 && p.st.ph > (mk.st.ph ?? 70) + 2 && Math.random() < 0.45) { doShoot(p, rand(0.6, 0.9), null); return; }
       if (Math.random() < 0.55) { const m = bestPass(p); if (m) { doPass(p, null, m); return; } }
     }
+    if (t.form === '40' && !t.ai.passive) { const rn = t.players.find(q => q !== p && !q.off && q.q4run && S.time < q.q4run.until && (q.pos.x - p.pos.x) * d > 1); if (rn && !laneBlocked(p, rn) && Math.random() < 0.45) { doPass(p, null, rn, false, { through: true, power: 0.3 }); return; } }   // クアトロ：ななめに走りこんだ味方へ（2026-11-09）
     const sg = t.seg;   // セグンド：ファーに走りこんだ味方へ、ゴール前を横切るパス
     if (sg && sg !== p && Math.abs(p.pos.z) > 2 && toGoal < 13 && d2(sg.pos, segTarget(sg) || sg.pos) < 1.6 && !laneBlocked(p, sg) && Math.random() < 0.4) { doPass(p, null, sg, false, { power: 0.35 }); return; }
     if (pl && pl.type === 'diag' && pl.p !== p && Math.random() < 0.55 && (pl.p.pos.x - p.pos.x) * d > 1.5) { doPass(p, null, pl.p, false, { through: true, power: rand(0.2, 0.5) }); return; }
@@ -5263,6 +5389,7 @@ function aiCarrier(p, dt) { // CPU がボールを持っているとき
     l = Math.hypot(dx, dz) || 1; p.dribDir = { x: dx / l, z: dz / l };
   }
   let sp = baseSpeed(p); if (nearestOpp(p) > 3 && p.stamina > 30) sp *= 1.2;
+  if (p.role === 'PIVO' && Math.hypot(HALF_L * t.dir - p.pos.x, p.pos.z) < 12) { for (const o of t.opp.players) { if (o.role !== 'GK' && !o.off && d2(o.pos, p.pos) < 1.7 && (o.pos.x - p.pos.x) * t.dir > 0) { sp *= 0.45; break; } } }   // ピヴォの背負い：ゴールを背にして相手を背中でおさえ、ゆっくりキープ（2026-11-09）
   steer(p, p.dribDir.x * sp, p.dribDir.z * sp, dt);
 }
 function aiGK(p, dt) { // キーパー
@@ -5334,9 +5461,22 @@ function aiGK(p, dt) { // キーパー
   p.stance = od < 4.8 && Math.abs(oc2.pos.z) < 3.5 ? 'cross' : od < 11 ? 'set' : null;
 }
 function gkThrow(p, feet) {
-  let m = bestPass(p);
-  if (!m) m = p.team.players.filter(q => q !== p && !q.off).sort((a, b) => d2(a.pos, p.pos) - d2(b.pos, p.pos))[0];
-  doPass(p, null, m, feet ? false : inArea(p.pos, p.team));   // 手なら投げる、足ならける
+  const t = p.team, hands = !feet && inArea(p.pos, t);
+  // 手で出すとき（2026-11-09）：前であいている味方がいれば、上から遠くへ投げる（カウンター）。いなければ、近くの味方へ下手で転がす。出す所がなければ少し待つ（4秒まで）
+  let far = null, fs = -1e9;
+  if (hands) for (const q of t.players) {
+    if (q === p || q.off || q.role === 'GK') continue;
+    const fwd = (q.pos.x - p.pos.x) * t.dir, dd = d2(q.pos, p.pos); if (fwd < 14 || dd > 30) continue;
+    let recv = 99, lane = 99; for (const o of t.opp.players) { recv = Math.min(recv, d2(o.pos, q.pos)); lane = Math.min(lane, segDist(o.pos, p.pos, q.pos)); }
+    if (recv < 4 || lane < 1.2) continue;
+    const s = recv + fwd * 0.15 + rand(0, 1); if (s > fs) { fs = s; far = q; }
+  }
+  let m = far && Math.random() < 0.45 ? far : bestPass(p);   // 遠くへ投げるのはカウンターのチャンスのときだけ（ふだんは近くへ転がす）
+  if (!m && hands && (p.ownT || 0) < 3.0 && S.phase === 'play') { p.hold = 0.3; return; }
+  if (!m) m = t.players.filter(q => q !== p && !q.off).sort((a, b) => d2(a.pos, p.pos) - d2(b.pos, p.pos))[0];
+  const over = hands && (m === far || d2(m.pos, p.pos) > 18);
+  p.throwType = !hands ? '' : over ? 'over' : 'under';   // 選手ビジュアル担当用：'under'＝下手で転がす・'over'＝上から投げる
+  doPass(p, null, m, hands, hands ? { lob: over, power: over ? 0.3 : 0.1 } : {});   // 手なら投げる、足ならける
   ball.protect = 0.8; // 投げた直後は相手が取れない
 }
 
@@ -6326,7 +6466,7 @@ function applySnap(s) {
     if (s.k && p.data.key !== s.k[i]) { const d = findKey(p.team, s.k[i]); if (d) bindData(p, d); }   // 交代
     const off = !!(f & 64); if (off !== !!p.off) { p.off = off; p.mesh.outer.visible = !off; }
   });
-  if (s.fl) { teams[0].fouls = s.fl[0]; teams[1].fouls = s.fl[1]; }
+  if (s.fl) { teams[0].fouls = s.fl[0]; teams[1].fouls = s.fl[1]; for (const t of teams) (t.foulsH || (t.foulsH = [0, 0]))[(S.half || 1) - 1] = t.fouls; }
   // PK の読み合い（ゲスト）
   if (s.pk) {
     const [id, ki, tleft, kz, sz, res] = s.pk;
@@ -6649,8 +6789,12 @@ function updateScoreboard(force) {
   if (!S) return;
   const sb = teams[0].score + ' - ' + teams[1].score;
   if (force || sb !== lastSB) { document.getElementById('score').textContent = sb; lastSB = sb; }
-  for (const t of teams) { const f = t.fouls || 0, el = document.getElementById('f' + t.i), tx = f ? 'F' + f : ''; if (el.textContent !== tx) el.textContent = tx; }
+  // 累積ファウル：5つの小さな線（たまると黄色。5つで チームの所がオレンジに光る）
+  for (const t of teams) { const f = sbFouls(t), el = document.getElementById('f' + t.i), tx = String(f); if (el.dataset.f === tx) continue; el.dataset.f = tx;
+    el.innerHTML = [0, 1, 2, 3, 4].map(k => `<i${k < f ? ' class="on"' : ''}></i>`).join(''); document.getElementById('sbt' + t.i).classList.toggle('f5', f >= 5); }
 }
+// 得点ボードに出すファウルの数（ここ1か所だけで つなぐ。試合担当の変数が決まったら、ここを書きかえる）
+function sbFouls(t) { return t.fouls || 0; }
 const powerEl = document.getElementById('power'), powerBar = powerEl.firstElementChild, stamBar = document.querySelector('#stam i');
 const mm = document.getElementById('minimap').getContext('2d');
 let guestCharge = 0;
@@ -7623,7 +7767,7 @@ let ctlFrom = 'sc-title';
 document.getElementById('p-ctl').onclick = () => { Sound.play('click'); ctlTab(IS_TOUCH ? 'touch' : 'key'); ctlFrom = 'sc-pause'; showScreen('sc-controls'); };
 document.getElementById('ctl-back').onclick = () => { Sound.play('click'); showScreen(MODE === 'match' && S ? ctlFrom : 'sc-title'); }; // 試合中なら一時停止の画面へもどる
 // ----- 作戦 -----
-const TAC_FORM = [['121', '1-2-1', 'ひし形。いちばん基本。前のピヴォにボールを当てて攻める'], ['22', '2-2', 'ボックス。後ろの2人で守りが固い'], ['31', '3-1', '3人でパスを回して、前のピヴォ1人をねらう'], ['40', '4-0', '4人が横に並んでぐるぐる回る。相手をつり出してスペースを作る']];
+const TAC_FORM = [['121', '1-2-1', 'ひし形。いちばん基本。前のピヴォにボールを当てて攻める'], ['22', '2-2', 'ボックス。後ろの2人で守りが固い'], ['31', '3-1', '3人でパスを回して、前のピヴォ1人をねらう'], ['40', '4-0', 'クアトロ。4人が横に広がってパスを回し、パスを出した人がななめに走りこむ。空いた所はほかの人がずれてうめる']];
 const TAC_LINE = [[-1, '引いて守る', '自分の陣地でかたまって守る。カウンターをねらう'], [0, 'ふつう', 'まん中くらいから守る'], [1, '前からプレス', '相手の陣地からボールをうばいにいく。つかれやすい']];
 const TAC_DEF = [['man', 'マンツーマン', '1人が相手の1人をずっとマークする。ボールを持った相手には、その人のマークの選手が寄せる'], ['zone', 'ゾーン', '自分の場所を守って、入ってきた相手をマークする。みんなでまとまって守る']];
 const TAC_ATK = [['bal', 'バランス', 'あいている味方にパス'], ['pivo', 'ピヴォ当て', 'ゴール前のピヴォにボールを当てて、落としたボールをシュート'], ['side', 'サイド（パラレラ）', 'アラがサイドのラインぞいを上がって、たてにパス']];
