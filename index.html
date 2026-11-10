@@ -1454,6 +1454,7 @@ const Sound = {
     dec(CROWD_REC.amb, b => this.recAmbStart(b));
     CROWD_REC.cheer.forEach((s, i) => dec(s, b => { this.rec.cheer[i] = b; }));
     this.bgmStart();
+    this.commStart();   // 試合のようすを見て、ふつうの場面の実況もする（2026-11-09 音担当）
     // 実況の声：iPhone は「さわったとき」に一度しゃべらせないと、あとでしゃべれないので、からっぽの声を一回だす
     try { if (window.speechSynthesis) speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) {}
   },
@@ -1461,20 +1462,158 @@ const Sound = {
   // text の先頭が「!」なら大事な実況（ゴールなど）：しゃべっている途中でも止めて、こちらをしゃべる。
   // ふつうの実況は、ほかの実況をしゃべっている間はとばす（しゃべりすぎないように）
   setVoice(v) { settings.voice = v; saveSettings(); if (!v && window.speechSynthesis) speechSynthesis.cancel(); },
-  jaVoice() { // 日本語の声をさがす（なければ null）
-    const vs = speechSynthesis.getVoices();
-    return vs.find(v => /^ja/i.test(v.lang) && /Kyoko|Google|O-ren|Otoya/i.test(v.name)) || vs.find(v => /^ja/i.test(v.lang)) || null;
+  // 男の人の声か（名前や voiceURI で分かるもの）。ユーザーの希望で、実況は男の人の声を先にえらぶ（2026-11-09）
+  isMaleVoice(v) { return !!v && /Otoya|Hattori|Ichiro|Keita|Daichi|Naoki|Takumi|男性|\bmale\b|Wavenet-[CD]|Standard-[CD]|Neural2-[CD]/i.test(v.name + ' ' + (v.voiceURI || '')); },
+  jaVoice() { // 日本語の声の中から、実況に使う声をえらぶ（なければ null）2026-11-09 音担当
+    // じゅん番：高品質の男の人の声 → ふつうの男の人の声 → 高品質の女の人の声 → ふつうの女の人の声（Kyoko など）→ おもしろ声
+    const all = speechSynthesis.getVoices(); if (this._jv !== undefined && this._jvN === all.length) return this._jv;
+    const score = v => { const n = v.name + ' ' + (v.voiceURI || ''); let s = 0;
+      if (this.isMaleVoice(v)) s += 20;                                                   // 男の人の声を先に
+      if (/Enhanced|Premium|Natural|Neural|Siri|拡張|高品質/i.test(n)) s += 10;          // 新しい・高品質の声
+      if (/Google/i.test(n)) s += 4;
+      if (/Kyoko|Otoya|O-ren|Hattori|Nanami|Keita|Ayumi|Haruka|Ichiro|Sayaka/i.test(n)) s += 3;
+      if (/Eddy|Flo|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley|Bells|Bubbles|Zarvox/i.test(n)) s -= 40;   // おもしろ声は人っぽくないので、いちばん後回し
+      return s; };
+    this._jv = all.filter(v => /^ja/i.test(v.lang)).sort((a, b) => score(b) - score(a))[0] || null; this._jvN = all.length;
+    return this._jv;
+  },
+  // 実況のしゃべり方（2026-11-09 音担当）：本物の試合の録音で、場内アナウンスの「しゃべり方」を数字で調べて近づけた
+  // （録音の声そのものは使っていない・まねて作ってもいない。調べたのは 速さ・声の高さの上がり下がり・間 だけ）
+  //  ・「！」「？」「。」で短いまとまりに区切って、まとまりの間を少しあける（録音では 0.2〜0.25 秒くらいの間が、10秒に1〜2回。「、」では区切らない）
+  //  ・声の高さを大きく上げ下げする（録音は合成の声の2倍くらい上下していた）：最初のまとまりが一番高く、だんだん下がる
+  //  ・大事な場面（ゴールなど）は、最初のさけびを高く・ゆっくり・のばして、名前は高め、点数などはおちついて
+  //  ・ユーザーの希望で「男の人の声か、低い声」：男の人の声でも高くしすぎない。男の人の声がない機械では、全体を低くして、その中で上がり下がりをつける
+  // ===== 実況の気持ち（2026-11-09 音担当・ユーザーの希望「もっと感情的に」）=====
+  // ゲームから来た実況の文を見て、場面をきめ、気持ちのこもった言い方に作りなおす（ことばは自分で作ったもの。本物の解説の人のことばはまねていない）
+  //  ゴール・スーパーセーブ・試合終了＝こうふん（高く・速く・大きく・のばす・くり返す）／ポスト・オウンゴール＝くやしい（「あーっと！」・下がっていく）
+  //  カード・PK＝強く／ふつうの場面＝おちついて（気持ちの差が大きく聞こえるように）
+  // 1つの言い方＝[ことば, 高さのだん(0〜4), 速さ, 大きさ]。高さのだん：4＝いちばん高い（さけび）… 0＝いちばん低い
+  emote(text, big) { // 2026-11-09 ユーザーの希望「もっと激しく」：こうふんの場面は、いちばん上のだん(5)・もっと速く・もっとのばす・くり返す・言葉を足す
+    const pick = a => a[(Math.random() * a.length) | 0], m = (re) => (text.match(re) || [])[1];
+    let g;
+    if ((g = /^ゴー+ル！\s*(.+?)！?$/.exec(text))) {   // ゴール！
+      const name = g[1], lines = [
+        [pick(['ゴーーーーーーール！', 'ゴーーーーール！ ゴーーール！', 'ゴーーール！ ゴール！ ゴール！ ゴーーール！']), 5, 1.3, 1],
+        [pick(['決めたーーーっ！', 'なんというシュートだーー！', 'やったーーー！', 'ネットを突きさしたーー！', '入ったーー！ 入ったーー！', '信じられないシュートだーー！']), 4, 1.5, 1],
+        [pick([name + 'ーー！ ' + name + 'ーー！', name + '！ やってくれたーー！', name + '！ これがエースだーー！']), 4, 1.4, 1]];
+      if (Math.random() < 0.7) lines.push([pick(['会場が、ゆれているーー！', 'もう、だれにも止められない！', 'すばらしいゴールです！']), 3, 1.45, 1]);
+      return { cut: true, lines };
+    }
+    if (/^オウンゴール/.test(text)) return { cut: true, lines: [['あーーーーっと！', 4, 1.25, 1], ['オウンゴーール！', 3, 1.2, 1], [pick(['これはいたいーー！', 'なんということだ…']), 0, 0.82, 0.9]] };
+    if ((g = /^スーパーセーブ！\s*(.+?)！?$/.exec(text))) return { cut: true, lines: [[pick(['止めたーーーっ！', 'とめたーーー！ とめたーー！']), 5, 1.4, 1], ['スーパーセーブだーー！', 4, 1.4, 1], [g[1] + '！ ' + pick(['なんという反応だーー！', 'ゴールを守りきったー！', '神セーブだーー！']), 3, 1.35, 1]] };
+    if (/^ナイスセーブ/.test(text)) return { cut: false, lines: [[pick(['ナイスセーブ。', 'うまく止めました。', 'キーパー、止めました。']), 2, 1.05, 0.9]] };   // ふつうの場面はおちついたまま
+    if (/^おしい！\s*(ポスト|クロスバー)/.test(text)) { const w = m(/(ポスト|クロスバー)/);
+      return { cut: true, lines: [[pick(['あーーーーっと！', 'うわーーーっ！', 'おーーーっと！']), 4, 1.3, 1], [pick(['おしいーーー！', w + 'だーーー！', w + 'にはばまれたーー！']), 3, 1.15, 1], [pick(['あと、ほんの少し…', '入らない…！', 'なんということだ…']), 0, 0.8, 0.85]] }; }
+    if ((g = /^レッドカード！\s*(.+?)、退場/.exec(text))) return { cut: true, lines: [['レッドカーーード！', 5, 1.3, 1], [g[1] + '、退場だーー！', 3, 1.25, 1], [pick(['これはきびしい！', '数的不利になります！']), 1, 1.05, 0.95]] };
+    if ((g = /^イエローカードです。(.+)$/.exec(text))) return { cut: true, lines: [['イエローカード！', 4, 1.25, 1], [g[1] + '、' + pick(['警告です！', 'これは注意！']), 2, 1.15, 1]] };
+    if (/^ペナルティキック|^第2PK/.test(text)) return { cut: true, lines: [[/^第2/.test(text) ? '第2PKだーーっ！' : 'ペナルティキックだーーっ！', 5, 1.35, 1], [pick(['大チャンス！', 'これは大きいぞ！', 'さあ、決められるか！']), 3, 1.35, 1]] };
+    if ((g = /^試合終了！\s*(.+?)。(.+)$/.exec(text))) return { cut: true, lines: [['試合しゅうりょうーーーーっ！', 5, 1.2, 1], [g[1], 1, 1.0, 0.95], [g[2].replace(/です！$/, 'だーーー！'), 4, 1.35, 1]] };
+    if ((g = /^前半終了！\s*(.+)$/.exec(text))) return { cut: true, lines: [['前半終了です。', 2, 1.0, 0.9], [g[1], 1, 0.98, 0.9]] };   // おちついて
+    if ((g = /^さあ、試合開始です！\s*(.+)$/.exec(text))) return { cut: true, lines: [['さあ、試合開始だーー！', 4, 1.25, 1], [g[1], 2, 1.1, 1]] };
+    // ---- 試合のながれの実況（commTick から来る。2026-11-09 音担当）：ためて→爆発 ----
+    if (/^シュート！$/.test(text)) return { cut: true, lines: [[pick(['シュートーーッ！', '打ったーー！', 'シュートーッ！']), 5, 1.45, 1]] };
+    if (/^カウンター！/.test(text)) return { cut: true, lines: [['カウンターだ！', 3, 1.35, 1], [text.replace(/^カウンター！\s*/, ''), 3, 1.4, 1]] };
+    if (/ゴール前！$|^さあ、チャンス！$/.test(text)) return { cut: false, lines: [[text, 3, 1.3, 1]] };
+    if (/打てるか！$/.test(text)) return { cut: true, lines: [[text.replace(/打てるか！$/, '打てるかーっ！'), 4, 1.45, 1]] };
+    if (/^パワープレー！/.test(text)) return { cut: true, lines: [['パワープレーだ！', 4, 1.3, 1], [text.replace(/^パワープレー！\s*/, ''), 3, 1.3, 1]] };
+    if (/^タイムアウト！/.test(text)) return { cut: true, lines: [['タイムアウト！', 3, 1.15, 1], [text.replace(/^タイムアウト！\s*/, ''), 1, 1.0, 0.9]] };
+    if (/5つ目のファウル！/.test(text)) return { cut: true, lines: [[text.split('！')[0] + '！', 3, 1.2, 1], ['あと1つで、第2PKです！', 3, 1.25, 1]] };
+    if (/^残り1分！/.test(text)) return { cut: true, lines: [[text, 4, 1.3, 1]] };
+    return null;   // そのほかは、ふつうの言い方
+  },
+  // ===== 試合のようすを見て、ふつうの場面の実況をふやす（2026-11-09 音担当）=====
+  // 0.25秒ごとに試合の様子（ボールを持っている人・場所・シュート・ファウル数・時計など）を見るだけ。試合の中身は変えない。
+  // 言葉は自分で作ったもの（本物の実況の人のことばはまねていない）。ホストと1人用で動き、オンラインのゲストにはホストから文字が届く
+  // ・パス回し・ピヴォへのくさび・キーパーのスロー・クアトロの形・ファウルの数・タイムアウト・パワープレー・残り時間（おちついて）
+  // ・ためて→爆発：ゴール前でボールを持つと「ゴール前！」→ 1秒たつと「打てるかーっ！」→ シュートで「シュートーーッ！」→ ゴールで大爆発
+  // ・カウンター：自分の陣地でボールをうばって、3秒以内に相手の陣地の奥まで行ったら
+  commStart() { if (!this._cwTimer) this._cwTimer = setInterval(() => { try { this.commTick(); } catch (e) { } }, 250); },
+  commTick() {
+    if (!settings.voice || MODE !== 'match' || !S || S.over || PAUSED || NET.role === 'guest' || (S.cfg && S.cfg.mode === 'tutorial')) { this._cw = null; return; }
+    if (!this._cw || this._cw.S !== S) this._cw = { S, now: 0, calmT: -99, team: null, gainT: 0, gainU: 0, passes: 0, lastPassBy: null, owner: null, counter: false, build: 0, buildT: 0, shot: false,
+      fouls: teams.map(t => t.fouls), pp: teams.map(t => !!t.ppOn), to: !!S.timeout, rm: null, quatro: {} };
+    const W = this._cw; W.now += 0.25; const now = W.now, pick = a => a[(Math.random() * a.length) | 0];
+    const calm = (txt, force) => { if (!force && now - W.calmT < 4) return; W.calmT = now; say(txt); };   // おちついた実況は、4秒に1回まで（本物の中継では、実況が 65% の時間しゃべっていた）
+    const o = ball.owner, t = o ? o.team : null, u = o ? o.pos.x * t.dir : 0, play = S.phase === 'play';
+    if (o && t !== W.team) { W.team = t; W.gainT = now; W.gainU = u; W.passes = 0; W.build = 0; W.counter = false; }
+    // パス回し
+    if (ball.passBy && ball.passBy !== W.lastPassBy) { W.lastPassBy = ball.passBy; if (ball.passBy.team === W.team && ++W.passes === 6) calm(pick([t ? t.def.name + '、パスをつないで組み立てます。' : 'パスをつないで、組み立てます。', 'ていねいに、パスを回します。', 'じっくりと、ボールを回して、すきをさがします。'])); }
+    if (o && play && o !== W.owner) {
+      if (o.role === 'PIVO' && u > HALF_L * 0.4 && ball.passBy && ball.passBy.team === t) calm(pick(['ピヴォに、くさびのパス！', o.name + 'が、背中で受ける。', 'ピヴォに当てて、展開。']));
+      else if (o.role === 'GK' && o.clearance) calm(pick(['キーパーが、スローで始めます。', 'キーパーから、すばやいスロー。']));
+      else if (t.form === '40' && !W.quatro[t.i]) { W.quatro[t.i] = true; calm(t.def.name + 'は、4人が回る、クアトロの形。'); }
+    }
+    // カウンター
+    if (o && play && !W.counter && W.gainU < -3 && u > HALF_L * 0.35 && now - W.gainT < 3) { W.counter = true; W.calmT = now; say('カウンター！ ' + o.name + 'が、一気に前へ！'); }
+    // ためて→爆発
+    if (o && play && u > HALF_L - 7.5) {
+      if (W.build === 0) { W.build = 1; W.buildT = now; W.calmT = now; say(pick(['ゴール前！', 'さあ、チャンス！', o.name + '、ゴール前！'])); this.crowdTo(0.1, 0.8); W.crowdUp = true; }   // 観客「おお…」
+      else if (W.build === 1 && now - W.buildT >= 1) { W.build = 2; say(pick(['打てるか！', 'さあ、打てるか！', o.name + '、打てるか！'])); this.crowdTo(0.15, 0.4); }   // 観客「おおおっ」
+    } else if (!o || u < HALF_L - 10) W.build = 0;
+    if (ball.isShot && !W.shot) { W.shot = true; W.shotT = now; W.calmT = now; say('シュート！'); this.crowdTo(0.18, 0.15); W.crowdUp = true; }
+    // 入らなかったら、観客の声は2〜3秒でもとにもどす（ゴールのときは roar がまかせる）
+    if (W.crowdUp && play && !ball.isShot && W.build === 0 && now - (W.shotT || 0) > 2) { W.crowdUp = false; this.crowdTo(0.05, 1.0); }
+    if (!ball.isShot) W.shot = false;
+    if (o && play && o !== W.owner && o.role !== 'GK' && W.build === 0 && Math.random() < 0.6) calm(pick([o.name + '。', o.name + '、前を向く。', o.name + 'が持って。', o.name + '、つなぐ。']));
+    W.owner = o;
+    // ファウルの数・パワープレー・タイムアウト
+    teams.forEach((tm, k) => {
+      if (tm.fouls > W.fouls[k]) { if (tm.fouls === 5) say(tm.def.name + '、これで5つ目のファウル！'); else if (tm.fouls >= 3 && tm.fouls < 6) calm(tm.def.name + '、これで' + tm.fouls + 'つ目のファウル。', true); }
+      W.fouls[k] = tm.fouls;
+      if (tm.ppOn && !W.pp[k]) say('パワープレー！ ' + tm.def.name + '、キーパーも上がってきた！');
+      W.pp[k] = !!tm.ppOn;
+    });
+    if (S.timeout && !W.to) say('タイムアウト！ ここで、作戦を立て直します。');
+    W.to = !!S.timeout;
+    // 残り時間（試合の時計を20分に直して）
+    if (play) { const rm = 20 - Math.floor(S.clock / S.halfLen * 20), h = S.half === 1 ? '前半' : '後半';
+      if (rm !== W.rm) { if (W.rm !== null && (rm === 10 || rm === 5)) calm(h + '、のこり' + rm + '分です。', true); if (W.rm !== null && rm === 1) say('残り1分！ ' + h + '、のこりわずか！'); W.rm = rm; } }
   },
   say(text) {
     if (!settings.voice || !window.speechSynthesis || !text || document.hidden) return;
     const big = text[0] === '!'; if (big) text = text.slice(1);
     const voice = this.jaVoice();
     if (!voice && speechSynthesis.getVoices().length) return; // 日本語の声が入っていない機械では、しゃべらない（英語の声で変に読むので）
-    if (big) speechSynthesis.cancel(); else if (speechSynthesis.speaking || speechSynthesis.pending) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ja-JP'; if (voice) u.voice = voice;
-    u.rate = big ? 1.2 : 1.1; u.pitch = big ? 1.2 : 1.05; u.volume = 1;   // 大事な所は少し速く・高く（もり上がる感じ）
-    speechSynthesis.speak(u);
+    const male = this.isMaleVoice(voice);
+    // 高さのだん（0〜5）→ ブラウザの高さ。男の人の声は少し上下、男の人の声がないときは全体を低くして、その中で大きく上下
+    // 高さのだん（0〜5）→ ブラウザの高さ。2026-11-09 ユーザーの希望「途中で明らかに声が変わる所を直して・もっと抑揚を」：
+    //  高さを大きく変えすぎると、別の人の声のように聞こえるので、幅をせまくした（前：いちばん低い〜高いで 2.9倍 → いま 1.6倍）。
+    //  そのかわり、1つの言い方の中を「、」「！」で区切って、ゆるやかに上がり下がりさせる（抑揚）。となりのまとまりとの高さのちがいは 0.08 まで
+    const LV = male ? [0.95, 0.98, 1.0, 1.03, 1.14, 1.24] : [0.83, 0.86, 0.88, 0.91, 1.03, 1.13];   // ふつう〜もり上がり（0〜3だん）は ほぼ同じ高さ（高さを変えると別の声に聞こえるので）。本当のさけび（4・5だん）だけ上げる
+    const em = this.emote(text, big);
+    if (em && em.cut) speechSynthesis.cancel(); else if (!em && big) speechSynthesis.cancel(); else if (speechSynthesis.speaking || speechSynthesis.pending) return;
+    let lines = em ? em.lines : null;
+    if (!lines) { // ふつうの言い方：「！？。」で区切って、おちついて、だんだん下がる（大事な場面は最初を高く）
+      const parts = (text.match(/[^！!？?。]+[！!？?。]*/g) || [text]).map(s => s.trim()).filter(Boolean);
+      lines = parts.map((p, i) => big ? [p, i === 0 ? 3 : 2, i === 0 ? 1.05 : 1.1, 1] : [p, Math.max(0, 2 - i), 1.0, 0.9]);
+    }
+    // 前の実況（6秒以内）からも、高さ・速さ・大きさをゆるやかにつなぐ（ユーザー：「田中」の所で声が変わる → 前の実況とのつなぎ目もなめらかに）
+    const tNow = performance.now() / 1000, near = tNow - (this._lastT || -99) < 6;
+    let prevP = near ? this._lastP : null, prevR = near ? this._lastR : null, prevV = near ? this._lastV : null;
+    for (const [line, lv, rate0, vol] of lines) {
+      // ユーザーの希望「ゴーーーーーールのように伸ばして」：こうふんの所の、もともと「ーー」とのばしている所だけを、もっと長くする。
+      // 読み上げの声によっては、カタカナの「ゴーーール」を「ゴール」という1つのことばとして短く読んでしまう（Kyoko で 0.45秒）ので、
+      // のばすことばは ひらがなに直してからのばす（「ごーーーーーーーーる」で 1.46秒）
+      const p = lv >= 4 ? line.replace(/[ァ-ヶー]*ー{2,}[ァ-ヶー]*/g, w => w.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))).replace(/ー{2,}/g, s => 'ー'.repeat(Math.min(14, s.length * 2 + 2))) : line;
+      const rate = Math.max(0.9, Math.min(1.3, lv >= 5 ? Math.min(rate0, 0.95) : rate0));   // 速さも、かわりすぎないように 0.9〜1.3
+      // 「、」「！」で区切るが、6文字より短いかたまり（「田中、」など）は次とくっつける。名前だけを1つで読ませると、読み方が変わって別の声のように聞こえるため
+      const phr = (p.match(/[^、！!？?]+[、！!？?]*/g) || [p]).map(s => s.trim()).filter(Boolean).reduce((a, s) => { if (a.length && a[a.length - 1].length < 6) a[a.length - 1] += s; else a.push(s); return a; }, []);
+      phr.forEach((s, k) => {
+        // 抑揚：こうふんの所は「高い→少し下がる→最後の！でまた上がる」、おちついた所は「少し高く始めて、だんだん下がる」
+        const last = k === phr.length - 1, up = lv >= 3;
+        const shape = up ? (phr.length === 1 ? 1 : k === 0 ? 1.04 : last && /[！!]$/.test(s) ? 1.03 : 0.97) : (phr.length === 1 ? 1 : 1.04 - 0.08 * k / (phr.length - 1));
+        let pitch = LV[lv] * shape, r = rate;
+        if (prevP !== null) pitch = Math.max(prevP - 0.08, Math.min(prevP + 0.08, pitch));   // となりとの高さのちがいは 0.08 まで（声が変わったように聞こえないように。こうふんは だんだん上がる）
+        if (prevR !== null) r = Math.max(prevR - 0.1, Math.min(prevR + 0.1, r));
+        let v = lv <= 2 ? vol * 0.75 : vol;   // おちついた所は少し小さく
+        if (prevV !== null) v = Math.max(prevV - 0.12, Math.min(prevV + 0.12, v));   // 大きさも急に変えない
+        prevP = pitch; prevR = r; prevV = v; this._lastP = pitch; this._lastR = r; this._lastV = v; this._lastT = tNow;
+        const u = new SpeechSynthesisUtterance(s);
+        u.lang = 'ja-JP'; if (voice) u.voice = voice;
+        u.pitch = +pitch.toFixed(3); u.rate = +r.toFixed(3); u.volume = +v.toFixed(3);
+        speechSynthesis.speak(u);   // 続けて予約すると、まとまりの間に少し間があく
+      });
+    }
   },
   setOn(v) { settings.se = v; saveSettings(); if (this.master) this.master.gain.value = v ? 0.7 : 0; },
   setBgm(v) { settings.bgm = v; saveSettings(); }, // BGM のオン・オフ（効果音とは別）
@@ -1628,12 +1767,13 @@ const Sound = {
         break;
       case 'applause': this.applause(arg || 2.5, 70, 0.14); break;
       case 'drum': { // 応援の太鼓「ドン・ドン・ドドドン」を3回
-        const beats = [0, 0.5, 1.0, 1.25, 1.5];
-        for (let r = 0; r < 3; r++) for (const b of beats) { const d = r * 2 + b; this.tone(95, 0.32, 'sine', 0.42, 42, d); this.tone(180, 0.06, 'triangle', 0.12, 90, d); }
+        const beats = [0, 0.44, 0.88, 1.1, 1.32];   // 1拍0.44秒（本物の中継の太鼓・手びょうしは 1拍0.42〜0.45秒だった）
+        for (let r = 0; r < 3; r++) for (const b of beats) { const d = r * 1.76 + b; this.tone(95, 0.32, 'sine', 0.42, 42, d); this.tone(180, 0.06, 'triangle', 0.12, 90, d); }
         break; }
       case 'roar': // ゴールの大歓声（長く・大きく）
         this.applause(6, 140, 0.24); this.recPlay(0.75); this.recPlay(0.55, 0.94, 0, 1.3);   // 本物の歓声を2つ重ねて長く
-        this.crowdTo(0.34, 0.08); setTimeout(() => this.crowdTo(0.05, 1.6), 4200); break;
+        this.recPlay(0.4, 1.02, 0, 2.6);   // ゴールのあとも少し歓声がつづく（実況のさけびの後ろで）
+        this.crowdTo(0.34, 0.08); setTimeout(() => this.crowdTo(0.1, 1.0), 3000); setTimeout(() => this.crowdTo(0.05, 2.0), 6000); break;   // 本物の中継：ピークの約3秒後に大きな声が引き、そのあと拍手でゆっくりもどる
       case 'click': this.tone(880, 0.05, 'square', 0.06); break;
       case 'say': this.say(arg); break;   // 実況（オンラインのゲストは、ホストから文字で受け取ってしゃべる）
     }
